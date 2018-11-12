@@ -5,12 +5,11 @@ import zipfile
 import urllib.request
 
 import keras
-import skimage
 import numpy as np
+from mrcnn import utils
 
 from datasets.coco.coco import COCO
 from datasets.coco import mask as maskUtils
-from mrcnn import utils
 
 DEFAULT_DATASET_YEAR = "2017"
 
@@ -306,7 +305,7 @@ class DataGenerator(keras.utils.Sequence):
         self.batch_size = batch_size
         self.cat_nms = cat_nms
         self.subset = subset
-        self.n_classes = len(cat_nms) + 1
+        self.n_classes = len(cat_nms)
         self.shuffle = shuffle
         self.n_channels = n_channels
 
@@ -345,11 +344,11 @@ class DataGenerator(keras.utils.Sequence):
             np.random.shuffle(self.indexes)
 
     def mask_to_one_hot(self, mask, class_ids):
-        output = np.zeros([len(class_ids), mask.shape[0],
+        output = np.zeros([self.n_classes, mask.shape[0],
                            mask.shape[1]], dtype=np.float32)
 
         mask = np.moveaxis(mask, -1, 0)
-        for m, i in mask:
+        for i, m in enumerate(mask):
             detection = np.array(m)
 
             cl = class_ids[i]
@@ -366,7 +365,8 @@ class DataGenerator(keras.utils.Sequence):
             image, min_dim=image_sq, max_dim=image_sq)
 
         mask = utils.resize_mask(mask, scale, padding, crop)
-        mask = utils.resize_mask(mask, float(image_sq) / mask_sq, [(0,0), (0,0), (0,0)])
+        mask = utils.resize_mask(mask, float(
+            mask_sq) / image_sq, [(0, 0), (0, 0), (0, 0)])
         mask = self.mask_to_one_hot(mask, class_ids)
 
         return image, mask

@@ -1,3 +1,4 @@
+import keras
 from keras import layers, backend
 from keras_applications.mobilenet_v2 import _make_divisible, correct_pad
 
@@ -219,7 +220,6 @@ def load_mobilenet_weights(model, alpha, dim):
     model.load_weights(weights_path, by_name=True)
 
 if __name__ == "__main__":
-    import keras
     import os
 
     input_tensor = layers.Input(shape=(224, 224, 3), name='input_1')

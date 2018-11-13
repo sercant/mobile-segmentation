@@ -114,3 +114,5 @@ dmypy.json
 .pyre/
 
 .vscode/
+logs/
+data/

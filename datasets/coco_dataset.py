@@ -15,7 +15,8 @@ DEFAULT_DATASET_YEAR = "2017"
 
 
 class CocoDataset(utils.Dataset):
-    def load_coco(self, dataset_dir, subset, year=DEFAULT_DATASET_YEAR, class_ids=None, cat_nms=None, auto_download=False):
+    def load_coco(self, dataset_dir, subset, year=DEFAULT_DATASET_YEAR, cat_nms=None, class_ids=None,
+                  class_map=None, return_coco=False, auto_download=False):
         """Load a subset of the COCO dataset.
         dataset_dir: The root directory of the COCO dataset.
         subset: What to load (train, val, minival, valminusminival)
@@ -44,8 +45,6 @@ class CocoDataset(utils.Dataset):
             # All classes
             class_ids = sorted(coco.getCatIds())
 
-        self.class_ids = class_ids
-
         # All images or a subset?
         if class_ids:
             image_ids = []
@@ -66,64 +65,12 @@ class CocoDataset(utils.Dataset):
             self.add_image(
                 "coco", image_id=i,
                 path=os.path.join(image_dir, coco.imgs[i]['file_name']),
-                url=coco.imgs[i]['coco_url'],
                 width=coco.imgs[i]["width"],
                 height=coco.imgs[i]["height"],
                 annotations=coco.loadAnns(coco.getAnnIds(
                     imgIds=[i], catIds=class_ids, iscrowd=None)))
-        return coco
-
-    def auto_download_annotations(self, dataDir, dataType, dataYear):
-        """Download the COCO annotations if requested.
-        dataDir: The root directory of the COCO dataset.
-        dataType: What to load (train, val, minival, valminusminival)
-        dataYear: What dataset year to load (2014, 2017) as a string, not an integer
-        Note:
-            For 2014, use "train", "val", "minival", or "valminusminival"
-            For 2017, only "train" and "val" annotations are available
-        """
-
-        # Create main folder if it doesn't exist yet
-        if not os.path.exists(dataDir):
-            os.makedirs(dataDir)
-
-        # Setup annotations data paths
-        annDir = "{}/annotations".format(dataDir)
-        if dataType == "minival":
-            annZipFile = "{}/instances_minival2014.json.zip".format(dataDir)
-            annFile = "{}/instances_minival2014.json".format(annDir)
-            annURL = "https://dl.dropboxusercontent.com/s/o43o90bna78omob/instances_minival2014.json.zip?dl=0"
-            unZipDir = annDir
-        elif dataType == "valminusminival":
-            annZipFile = "{}/instances_valminusminival2014.json.zip".format(
-                dataDir)
-            annFile = "{}/instances_valminusminival2014.json".format(annDir)
-            annURL = "https://dl.dropboxusercontent.com/s/s3tw5zcg7395368/instances_valminusminival2014.json.zip?dl=0"
-            unZipDir = annDir
-        else:
-            annZipFile = "{}/annotations_trainval{}.zip".format(
-                dataDir, dataYear)
-            annFile = "{}/instances_{}{}.json".format(
-                annDir, dataType, dataYear)
-            annURL = "http://images.cocodataset.org/annotations/annotations_trainval{}.zip".format(
-                dataYear)
-            unZipDir = dataDir
-        # print("Annotations paths:"); print(annDir); print(annFile); print(annZipFile); print(annURL)
-
-        # Download annotations if not available locally
-        if not os.path.exists(annDir):
-            os.makedirs(annDir)
-        if not os.path.exists(annFile):
-            if not os.path.exists(annZipFile):
-                print("Downloading zipped annotations to " + annZipFile + " ...")
-                with urllib.request.urlopen(annURL) as resp, open(annZipFile, 'wb') as out:
-                    shutil.copyfileobj(resp, out)
-                print("... done downloading.")
-            print("Unzipping " + annZipFile)
-            with zipfile.ZipFile(annZipFile, "r") as zip_ref:
-                zip_ref.extractall(unZipDir)
-            print("... done unzipping")
-        print("Will use annotations in " + annFile)
+        if return_coco:
+            return coco
 
     def auto_download(self, dataDir, dataType, dataYear):
         """Download the COCO dataset/annotations if requested.
@@ -205,11 +152,9 @@ class CocoDataset(utils.Dataset):
 
     def load_mask(self, image_id):
         """Load instance masks for the given image.
-
         Different datasets use different ways to store masks. This
         function converts the different mask format to one format
         in the form of a bitmap [height, width, instances].
-
         Returns:
         masks: A bool array of shape [height, width, instance count] with
             one mask per instance.
@@ -237,8 +182,8 @@ class CocoDataset(utils.Dataset):
                     continue
                 # Is it a crowd? If so, use a negative class ID.
                 if annotation['iscrowd']:
-                    # Use negative class ID for crowds
-                    class_id *= -1
+                    # Use negative class ID for crowds - deleted @sercant
+                    # class_id *= -1
                     # For crowd masks, annToMask() sometimes returns a mask
                     # smaller than the given dimensions. If so, resize it.
                     if m.shape[0] != image_info["height"] or m.shape[1] != image_info["width"]:
@@ -340,7 +285,7 @@ class DataGenerator(keras.utils.Sequence):
     def on_epoch_end(self):
         'Updates indexes after each epoch'
         self.indexes = np.arange(len(self.image_ids))
-        if self.shuffle == True:
+        if self.shuffle:
             np.random.shuffle(self.indexes)
 
     def mask_to_one_hot(self, mask, class_ids):
@@ -348,17 +293,15 @@ class DataGenerator(keras.utils.Sequence):
                            mask.shape[1]], dtype=np.float32)
 
         mask = np.moveaxis(mask, -1, 0)
-        for i, m in enumerate(mask):
-            detection = np.array(m)
+        for i in range(len(mask)):
+            cl = class_ids[i] - 1  # substract bg class
+            assert 0 <= cl < self.n_channels
+            output[cl] = np.logical_or(output[cl], mask[i])
 
-            cl = class_ids[i]
-            output[cl] = output[cl] + detection
-        output = np.ceil(output / np.max(output))
-
-        return np.moveaxis(output, 0, -1)
+        return np.moveaxis(output, 0, -1).astype(np.uint8)
 
     def load_data(self, image_id, image_sq, mask_sq):
-        image = self.coco_dataset.load_image(image_id)
+        image = self.coco_dataset.load_image(image_id) / 255.
         mask, class_ids = self.coco_dataset.load_mask(image_id)
 
         image, _, scale, padding, crop = utils.resize_image(
@@ -376,9 +319,9 @@ class DataGenerator(keras.utils.Sequence):
         'Generates data containing batch_size samples'
         # Initialization
         X = np.empty(
-            (self.batch_size, self.image_sq, self.image_sq, self.n_channels))
+            (self.batch_size, self.image_sq, self.image_sq, self.n_channels), dtype=np.float)
         y = np.empty(
-            (self.batch_size, self.mask_sq, self.mask_sq, self.n_classes))
+            (self.batch_size, self.mask_sq, self.mask_sq, self.n_classes), dtype=np.uint8)
 
         # Generate data
         for i, ID in enumerate(image_ids_temp):

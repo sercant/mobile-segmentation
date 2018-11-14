@@ -16,8 +16,8 @@ if __name__ == "__main__":
     NUM_EPOCH = 250
     IMAGE_SQ_SIZE = 224
 
-    coco_path = '/Volumes/SercanHDD/coco'
-    log_path = './logs'
+    coco_path = './data/coco/'
+    log_path = './logs/'
     checkpoint_path = './dist/'
 
     for path in [coco_path, log_path, checkpoint_path]:
@@ -44,11 +44,14 @@ if __name__ == "__main__":
     # Load weights.
     load_mobilenet_weights(model, 1.0, IMAGE_SQ_SIZE)
 
+    if os.path.isfile(checkpoint_path + 'weights.h5'):
+        model.load_weights(checkpoint_path + 'weights.h5')
+
     model.summary()
 
     model.compile(
         optimizer=optimizers.Adam(lr=1e-5),
-        loss=dice_coef_loss,
+        loss='sparse_categorical_crossentropy',
         metrics=[dice_coef, recall, precision, f1_score]
     )
 

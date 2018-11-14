@@ -1,4 +1,5 @@
-tensorflow
+tensorflow-gpu
 keras
 mrcnn
 scikit-image
+pycocotools

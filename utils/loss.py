@@ -1,4 +1,5 @@
 from keras import backend as K
+import tensorflow as tf
 
 smooth = 1.
 
@@ -32,6 +33,12 @@ def recall(y_true, y_pred):
     possible_positives = K.sum(K.round(K.clip(y_true_f, 0, 1)))
 
     return true_positives / (possible_positives + K.epsilon())
+
+
+def binary_crossentropy(y_true, y_pred):
+    loss = K.binary_crossentropy(target=y_true, output=y_pred)
+    loss = K.mean(loss)
+    return loss
 
 
 def f1_score(y_true, y_pred):

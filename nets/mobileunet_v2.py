@@ -148,15 +148,15 @@ def MobileUNet_v2(
     x5 = x
     print('x5: {}'.format(x5.shape))
 
-    x = layers.GlobalAveragePooling2D()(x)
-    x = layers.Dense(1000, activation='softmax',
-                     use_bias=True, name='Logits')(x)
+    # x = layers.GlobalAveragePooling2D()(x)
+    # x = layers.Dense(1000, activation='softmax',
+    #                  use_bias=True, name='Logits')(x)
 
     up1 = layers.concatenate(
         [
             x4,
             layers.Conv2DTranspose(
-                96, (2, 2), strides=(2, 2), padding='same')(x5)
+                96, 4, strides=(2, 2), padding='same')(x5)
         ],
         axis=3
     )
@@ -168,7 +168,7 @@ def MobileUNet_v2(
         [
             x3,
             layers.Conv2DTranspose(
-                32, (2, 2), strides=(2, 2), padding='same')(up1)
+                32, 4, strides=(2, 2), padding='same')(up1)
         ],
         axis=3
     )
@@ -180,7 +180,7 @@ def MobileUNet_v2(
         [
             x2,
             layers.Conv2DTranspose(
-                24, (2, 2), strides=(2, 2), padding='same')(up2)
+                24, 4, strides=(2, 2), padding='same')(up2)
         ],
         axis=3
     )
@@ -192,7 +192,7 @@ def MobileUNet_v2(
         [
             x1,
             layers.Conv2DTranspose(
-                16, (2, 2), strides=(2, 2), padding='same')(up3)
+                16, 4, strides=(2, 2), padding='same')(up3)
         ],
         axis=3
     )
@@ -200,7 +200,7 @@ def MobileUNet_v2(
                               expansion=6, block_id=20)
     print('up4: {}'.format(up4.shape))
 
-    conv_last = layers.Conv2D(16, 1)(up4)
+    conv_last = layers.Conv2D(3, 1)(up4)
     print('conv_last: {}'.format(conv_last.shape))
 
     conv_score = layers.Conv2D(classes, 1)(conv_last)

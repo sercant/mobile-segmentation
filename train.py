@@ -10,10 +10,10 @@ from nets.mobileunet_v2 import MobileUNet_v2, load_mobilenet_weights
 from utils.loss import dice_coef, dice_coef_loss, recall, precision, f1_score
 
 if __name__ == "__main__":
-    cat_nms = ['book', 'apple', 'keyboard']
+    cat_nms = ['book']
 
-    BATCH_SIZE = 32
-    NUM_EPOCH = 250
+    BATCH_SIZE = 8
+    NUM_EPOCH = 100
     IMAGE_SQ_SIZE = 224
 
     coco_path = './data/coco/'
@@ -36,7 +36,8 @@ if __name__ == "__main__":
         shape=(IMAGE_SQ_SIZE, IMAGE_SQ_SIZE, 3), name='input_1')
 
     net = MobileUNet_v2(
-        input_tensor=input_tensor
+        input_tensor=input_tensor,
+        classes=len(cat_nms)
     )
 
     model = keras.models.Model(input_tensor, net)
@@ -50,9 +51,9 @@ if __name__ == "__main__":
     model.summary()
 
     model.compile(
-        optimizer=optimizers.Adam(lr=1e-5),
-        loss='sparse_categorical_crossentropy',
-        metrics=[dice_coef, recall, precision, f1_score]
+        optimizer=optimizers.Adam(lr=1e-4),
+        loss='binary_crossentropy',
+        metrics=['accuracy', dice_coef, recall, precision, f1_score]
     )
 
     tensorboard = callbacks.TensorBoard(log_dir=log_path)

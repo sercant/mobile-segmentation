@@ -336,7 +336,7 @@ class DataGenerator(keras.utils.Sequence):
         mask, class_ids = self.coco_dataset.load_mask(image_id)
 
         image, _, scale, padding, crop = utils.resize_image(
-            image, min_dim=image_sq, max_dim=image_sq, mode='crop')
+            image, min_dim=image_sq, mode='crop')
         mask = utils.resize_mask(mask, scale, padding, crop)
 
         # image, mask = self.augmentation(image, mask, self.augmentation)

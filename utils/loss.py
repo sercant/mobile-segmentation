@@ -36,10 +36,8 @@ def recall(y_true, y_pred):
 
 
 def binary_crossentropy(y_true, y_pred):
-    loss = K.binary_crossentropy(target=y_true, output=y_pred)
-    loss = K.mean(loss)
-    return loss
-
+    return K.mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=y_true,
+                                                    logits=y_pred), axis=-1)
 
 def f1_score(y_true, y_pred):
     return 2. / (1. / recall(y_true, y_pred) + 1. / precision(y_true, y_pred))

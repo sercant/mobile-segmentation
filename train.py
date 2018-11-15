@@ -7,7 +7,7 @@ import numpy as np
 
 from datasets.coco_dataset import DataGenerator as coco_generator
 from nets.mobileunet_v2 import MobileUNet_v2, load_mobilenet_weights
-from utils.loss import dice_coef, dice_coef_loss, recall, precision, f1_score
+from utils.loss import dice_coef, dice_coef_loss, recall, precision, f1_score, binary_crossentropy
 
 if __name__ == "__main__":
     cat_nms = ['book']
@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
     model.compile(
         optimizer=optimizers.Adam(lr=1e-4),
-        loss='binary_crossentropy',
+        loss=binary_crossentropy,
         metrics=['accuracy', dice_coef, recall, precision, f1_score]
     )
 

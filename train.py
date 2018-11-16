@@ -6,8 +6,9 @@ from keras import layers, optimizers, callbacks
 import numpy as np
 
 from datasets.coco_dataset import DataGenerator as coco_generator
-# from nets.mobileunet_v2 import MobileUNet_v2, load_mobilenet_weights
-from nets.unet import unet, load_unet_weights
+from nets.mobileunet_v2 import network
+from nets.mobileunet_v2 import load_backbone_weights
+# from nets.unet import unet, load_unet_weights
 from utils.loss import dice_coef, dice_coef_loss, recall, precision, f1_score, binary_crossentropy
 
 if __name__ == "__main__":
@@ -36,13 +37,13 @@ if __name__ == "__main__":
     #     classes=len(cat_nms)
     # )
 
-    net = unet(inputs=input_tensor, num_classes=len(cat_nms))
+    net = network(input_tensor=input_tensor, num_classes=len(cat_nms))
 
     model = keras.models.Model(input_tensor, net)
 
     # Load weights.
     # load_mobilenet_weights(model, 1.0, IMAGE_SQ_SIZE)
-    load_unet_weights(model, IMAGE_SQ_SIZE)
+    load_backbone_weights(model, IMAGE_SQ_SIZE)
 
     if os.path.isfile(checkpoint_path + 'weights.h5'):
         model.load_weights(checkpoint_path + 'weights.h5')

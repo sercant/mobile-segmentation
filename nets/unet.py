@@ -1,5 +1,7 @@
 from keras import layers, utils
 
+network = MobileUNet_v1
+
 def conv_block(inputs, filters, alpha, kernel=(3, 3), strides=(1, 1), block_id=1):
     channel_axis = -1
     filters = int(filters * alpha)
@@ -48,7 +50,7 @@ def conv_transpose_block(inputs, filters, kernel_size=2):
     return net
 
 
-def unet(inputs, num_classes):
+def MobileUNet_v1(input_tensor, num_classes):
     alpha = 1.0
     depth_multiplier = 1
 
@@ -119,7 +121,7 @@ def unet(inputs, num_classes):
 
     return x
 
-def load_unet_weights(model, image_size):
+def load_backbone_weights(model, image_size):
     # Load weights.
     model_name = 'mobilenet_1_0_%d_tf.h5' % image_size
     weigh_path = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.6/mobilenet_1_0_%d_tf.h5' % image_size

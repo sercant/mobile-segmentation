@@ -1,6 +1,5 @@
 from keras import layers, utils
 
-network = MobileUNet_v1
 
 def conv_block(inputs, filters, alpha, kernel=(3, 3), strides=(1, 1), block_id=1):
     channel_axis = -1
@@ -10,11 +9,13 @@ def conv_block(inputs, filters, alpha, kernel=(3, 3), strides=(1, 1), block_id=1
                       use_bias=False,
                       strides=strides,
                       name='conv%d' % block_id)(inputs)
-    x = layers.BatchNormalization(axis=channel_axis, name='conv_%d_bn' % block_id)(x)
+    x = layers.BatchNormalization(
+        axis=channel_axis, name='conv_%d_bn' % block_id)(x)
     return layers.ReLU(6., name='conv_%d_relu' % block_id)(x)
 
+
 def depthwise_conv_block(inputs, pointwise_conv_filters, alpha,
-                          depth_multiplier=1, strides=(1, 1), block_id=1):
+                         depth_multiplier=1, strides=(1, 1), block_id=1):
     channel_axis = -1
     pointwise_conv_filters = int(pointwise_conv_filters * alpha)
 
@@ -42,8 +43,10 @@ def depthwise_conv_block(inputs, pointwise_conv_filters, alpha,
                                   name='conv_pw_%d_bn' % block_id)(x)
     return layers.ReLU(6., name='conv_pw_%d_relu' % block_id)(x)
 
+
 def conv_transpose_block(inputs, filters, kernel_size=2):
-    net = layers.Conv2DTranspose(filters, kernel_size, strides=2, padding='same')(inputs)
+    net = layers.Conv2DTranspose(
+        filters, kernel_size, strides=2, padding='same')(inputs)
     net = layers.BatchNormalization()(net)
     net = layers.ReLU(6.)(net)
 
@@ -62,19 +65,19 @@ def MobileUNet_v1(input_tensor, num_classes):
     skip_1 = x
 
     x = depthwise_conv_block(x, 128, alpha, depth_multiplier,
-                              strides=(2, 2), block_id=2)
+                             strides=(2, 2), block_id=2)
     x = depthwise_conv_block(x, 128, alpha, depth_multiplier, block_id=3)
     # x = layers.MaxPooling2D(strides=2) (x)
     skip_2 = x
 
     x = depthwise_conv_block(x, 256, alpha, depth_multiplier,
-                              strides=(2, 2), block_id=4)
+                             strides=(2, 2), block_id=4)
     x = depthwise_conv_block(x, 256, alpha, depth_multiplier, block_id=5)
     # x = layers.MaxPooling2D(strides=2) (x)
     skip_3 = x
 
     x = depthwise_conv_block(x, 512, alpha, depth_multiplier,
-                              strides=(2, 2), block_id=6)
+                             strides=(2, 2), block_id=6)
     x = depthwise_conv_block(x, 512, alpha, depth_multiplier, block_id=7)
     x = depthwise_conv_block(x, 512, alpha, depth_multiplier, block_id=8)
     x = depthwise_conv_block(x, 512, alpha, depth_multiplier, block_id=9)
@@ -84,7 +87,7 @@ def MobileUNet_v1(input_tensor, num_classes):
     skip_4 = x
 
     x = depthwise_conv_block(x, 1024, alpha, depth_multiplier,
-                              strides=(2, 2), block_id=12)
+                             strides=(2, 2), block_id=12)
     x = depthwise_conv_block(x, 1024, alpha, depth_multiplier, block_id=13)
     # x = layers.MaxPooling2D(strides=2) (x)
 
@@ -121,6 +124,7 @@ def MobileUNet_v1(input_tensor, num_classes):
 
     return x
 
+
 def load_backbone_weights(model, image_size):
     # Load weights.
     model_name = 'mobilenet_1_0_%d_tf.h5' % image_size
@@ -128,3 +132,6 @@ def load_backbone_weights(model, image_size):
     weights_path = utils.get_file(
         model_name, weigh_path, cache_subdir='models')
     model.load_weights(weights_path, by_name=True)
+
+
+network = MobileUNet_v1

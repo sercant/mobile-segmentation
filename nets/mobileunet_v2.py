@@ -5,7 +5,6 @@ from keras_applications.mobilenet_v2 import _make_divisible, correct_pad
 BASE_WEIGHT_PATH = ('https://github.com/JonathanCMitchell/mobilenet_v2_keras/'
                     'releases/download/v1.1/')
 
-network = MobileUNet_v2
 
 def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
     in_channels = backend.int_shape(inputs)[-1]
@@ -64,11 +63,11 @@ def MobileUNet_v2(
         input_tensor,
         num_classes):
     # Alias
-    alpha=1.0
+    alpha = 1.0
 
     img_input = input_tensor
 
-    first_block_filters = 32 # _make_divisible(32 * alpha, 8)
+    first_block_filters = 32  # _make_divisible(32 * alpha, 8)
     # x = layers.ZeroPadding2D(padding=correct_pad(backend, img_input, 3),
     #                          name='Conv1_pad')(img_input)
     x = layers.Conv2D(first_block_filters,
@@ -212,6 +211,7 @@ def MobileUNet_v2(
 
     return out
 
+
 def load_backbone_weights(model, dim):
     # Load weights.
     model_name = ('mobilenet_v2_weights_tf_dim_ordering_tf_kernels_' +
@@ -220,6 +220,10 @@ def load_backbone_weights(model, dim):
     weights_path = keras.utils.get_file(
         model_name, weigh_path, cache_subdir='models')
     model.load_weights(weights_path, by_name=True)
+
+
+network = MobileUNet_v2
+
 
 if __name__ == "__main__":
     import os

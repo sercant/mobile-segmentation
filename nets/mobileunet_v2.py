@@ -214,8 +214,8 @@ def MobileUNet_v2(
 
 def load_backbone_weights(model, dim):
     # Load weights.
-    model_name = ('mobilenet_v2_weights_tf_dim_ordering_tf_kernels_' +
-                  str(alpha) + '_' + str(dim) + '.h5')
+    # https://github.com/JonathanCMitchell/mobilenet_v2_keras/releases/download/v1.1/mobilenet_v2_weights_tf_dim_ordering_tf_kernels_1.0_224.h5
+    model_name = ('mobilenet_v2_weights_tf_dim_ordering_tf_kernels_1.0_' + str(dim) + '.h5')
     weigh_path = BASE_WEIGHT_PATH + model_name
     weights_path = keras.utils.get_file(
         model_name, weigh_path, cache_subdir='models')
@@ -229,14 +229,14 @@ if __name__ == "__main__":
     import os
 
     input_tensor = layers.Input(shape=(224, 224, 3), name='input_1')
-    net = model(
+    net = network(
         input_tensor=input_tensor
     )
 
     # Create model.
     model = keras.models.Model(input_tensor, net)
 
-    load_mobilenet_weights(model, 1.0, 224)
+    load_backbone_weights(model, 1.0, 224)
 
     model.summary()
 

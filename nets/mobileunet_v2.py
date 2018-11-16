@@ -73,7 +73,7 @@ def MobileUNet_v2(
     x = layers.Conv2D(first_block_filters,
                       kernel_size=3,
                       strides=2,
-                      padding='valid',
+                      padding='same',
                       use_bias=False,
                       name='Conv1')(img_input)
     x = layers.BatchNormalization(
@@ -204,7 +204,7 @@ def MobileUNet_v2(
     conv_last = layers.Conv2D(3, 1)(up4)
     print('conv_last: {}'.format(conv_last.shape))
 
-    conv_score = layers.Conv2D(classes, 1)(conv_last)
+    conv_score = layers.Conv2D(num_classes, 1)(conv_last)
     print('conv_score: {}'.format(conv_score.shape))
 
     out = layers.Activation('sigmoid', name='output_1')(conv_score)

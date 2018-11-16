@@ -57,7 +57,7 @@ def MobileUNet_v1(input_tensor, num_classes):
     alpha = 1.0
     depth_multiplier = 1
 
-    x = conv_block(inputs, 32, alpha, strides=(2, 2), block_id=1)
+    x = conv_block(input_tensor, 32, alpha, strides=(2, 2), block_id=1)
     skip_0 = x
 
     x = depthwise_conv_block(x, 64, alpha, depth_multiplier, block_id=1)

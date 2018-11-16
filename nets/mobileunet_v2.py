@@ -29,14 +29,14 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
         prefix = 'expanded_conv_'
 
     # Depthwise
-    if stride == 2:
-        x = layers.ZeroPadding2D(padding=correct_pad(backend, x, 3),
-                                 name=prefix + 'pad')(x)
+    # if stride == 2:
+    #     x = layers.ZeroPadding2D(padding=correct_pad(backend, x, 3),
+    #                              name=prefix + 'pad')(x)
     x = layers.DepthwiseConv2D(kernel_size=3,
                                strides=stride,
                                activation=None,
                                use_bias=False,
-                               padding='same' if stride == 1 else 'valid',
+                               padding='same',
                                name=prefix + 'depthwise')(x)
     x = layers.BatchNormalization(epsilon=1e-3,
                                   momentum=0.999,
@@ -66,15 +66,15 @@ def MobileUNet_v2(
     # Alias
     img_input = input_tensor
 
-    first_block_filters = _make_divisible(32 * alpha, 8)
-    x = layers.ZeroPadding2D(padding=correct_pad(backend, img_input, 3),
-                             name='Conv1_pad')(img_input)
+    first_block_filters = 32 # _make_divisible(32 * alpha, 8)
+    # x = layers.ZeroPadding2D(padding=correct_pad(backend, img_input, 3),
+    #                          name='Conv1_pad')(img_input)
     x = layers.Conv2D(first_block_filters,
                       kernel_size=3,
-                      strides=(2, 2),
+                      strides=2,
                       padding='valid',
                       use_bias=False,
-                      name='Conv1')(x)
+                      name='Conv1')(img_input)
     x = layers.BatchNormalization(
         epsilon=1e-3, momentum=0.999, name='bn_Conv1')(x)
     x = layers.ReLU(6., name='Conv1_relu')(x)
@@ -131,10 +131,10 @@ def MobileUNet_v2(
     # no alpha applied to last conv as stated in the paper:
     # if the width multiplier is greater than 1 we
     # increase the number of output channels
-    if alpha > 1.0:
-        last_block_filters = _make_divisible(1280 * alpha, 8)
-    else:
-        last_block_filters = 1280
+    # if alpha > 1.0:
+    #     last_block_filters = _make_divisible(1280 * alpha, 8)
+    # else:
+    last_block_filters = 1280
 
     x = layers.Conv2D(last_block_filters,
                       kernel_size=1,
@@ -156,7 +156,7 @@ def MobileUNet_v2(
         [
             x4,
             layers.Conv2DTranspose(
-                96, 4, strides=(2, 2), padding='same')(x5)
+                96, 4, strides=2, padding='same')(x5)
         ],
         axis=3
     )
@@ -168,7 +168,7 @@ def MobileUNet_v2(
         [
             x3,
             layers.Conv2DTranspose(
-                32, 4, strides=(2, 2), padding='same')(up1)
+                32, 4, strides=2, padding='same')(up1)
         ],
         axis=3
     )
@@ -180,7 +180,7 @@ def MobileUNet_v2(
         [
             x2,
             layers.Conv2DTranspose(
-                24, 4, strides=(2, 2), padding='same')(up2)
+                24, 4, strides=2, padding='same')(up2)
         ],
         axis=3
     )
@@ -192,7 +192,7 @@ def MobileUNet_v2(
         [
             x1,
             layers.Conv2DTranspose(
-                16, 4, strides=(2, 2), padding='same')(up3)
+                16, 4, strides=2, padding='same')(up3)
         ],
         axis=3
     )

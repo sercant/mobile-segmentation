@@ -34,7 +34,7 @@ def resize_image(image, min_dim=224):
     if scale != 1:
         image = skimage.transform.resize(
             image, (round(h * scale), round(w * scale)),
-            order=1, mode="constant", preserve_range=True)
+            order=1, mode="constant", preserve_range=True) # , anti_aliasing=scale<1.)
 
     # Need padding or cropping?
     # Pick a random crop
@@ -387,13 +387,14 @@ class DataGenerator(keras.utils.Sequence):
     #     return image, mask
 
     def load_data(self, image_id, image_sq, mask_sq):
-        image = self.coco_dataset.load_image(image_id) / 255.
+        image = self.coco_dataset.load_image(image_id)
         mask, class_ids = self.coco_dataset.load_mask(image_id)
 
         image, _, scale, padding, crop = resize_image(
             image, min_dim=image_sq)
         mask = resize_mask(mask, scale, padding, crop)
 
+        image = image / 128. - 1.
         # image, mask = self.augmentation(image, mask, self.augmentation)
 
         mask = resize_mask(mask, float(

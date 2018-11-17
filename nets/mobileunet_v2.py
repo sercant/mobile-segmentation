@@ -21,26 +21,22 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
                           use_bias=False,
                           activation=None,
                           name=prefix + 'expand')(x)
-        x = layers.BatchNormalization(epsilon=1e-3,
-                                      momentum=0.999,
-                                      name=prefix + 'expand_BN')(x)
+        x = layers.BatchNormalization(name=prefix + 'expand_BN')(x)
         x = layers.ReLU(6., name=prefix + 'expand_relu')(x)
     else:
         prefix = 'expanded_conv_'
 
     # Depthwise
-    # if stride == 2:
-    #     x = layers.ZeroPadding2D(padding=correct_pad(backend, x, 3),
-    #                              name=prefix + 'pad')(x)
+    if stride == 2:
+        x = layers.ZeroPadding2D(padding=correct_pad(backend, x, 3),
+                                 name=prefix + 'pad')(x)
     x = layers.DepthwiseConv2D(kernel_size=3,
                                strides=stride,
                                activation=None,
                                use_bias=False,
-                               padding='same',
+                               padding='same' if stride == 1 else 'valid',
                                name=prefix + 'depthwise')(x)
-    x = layers.BatchNormalization(epsilon=1e-3,
-                                  momentum=0.999,
-                                  name=prefix + 'depthwise_BN')(x)
+    x = layers.BatchNormalization(name=prefix + 'depthwise_BN')(x)
 
     x = layers.ReLU(6., name=prefix + 'depthwise_relu')(x)
 
@@ -51,8 +47,7 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
                       use_bias=False,
                       activation=None,
                       name=prefix + 'project')(x)
-    x = layers.BatchNormalization(
-        epsilon=1e-3, momentum=0.999, name=prefix + 'project_BN')(x)
+    x = layers.BatchNormalization(name=prefix + 'project_BN')(x)
 
     if in_channels == pointwise_filters and stride == 1:
         return layers.Add(name=prefix + 'add')([inputs, x])
@@ -76,8 +71,7 @@ def MobileUNet_v2(
                       padding='same',
                       use_bias=False,
                       name='Conv1')(img_input)
-    x = layers.BatchNormalization(
-        epsilon=1e-3, momentum=0.999, name='bn_Conv1')(x)
+    x = layers.BatchNormalization(name='bn_Conv1')(x)
     x = layers.ReLU(6., name='Conv1_relu')(x)
 
     x = _inverted_res_block(x, filters=16, alpha=alpha, stride=1,
@@ -141,9 +135,7 @@ def MobileUNet_v2(
                       kernel_size=1,
                       use_bias=False,
                       name='Conv_1')(x)
-    x = layers.BatchNormalization(epsilon=1e-3,
-                                  momentum=0.999,
-                                  name='Conv_1_bn')(x)
+    x = layers.BatchNormalization(name='Conv_1_bn')(x)
     x = layers.ReLU(6., name='out_relu')(x)
 
     x5 = x
@@ -152,12 +144,11 @@ def MobileUNet_v2(
     # x = layers.GlobalAveragePooling2D()(x)
     # x = layers.Dense(1000, activation='softmax',
     #                  use_bias=True, name='Logits')(x)
-
     up1 = layers.concatenate(
         [
             x4,
             layers.Conv2DTranspose(
-                96, 4, strides=2, padding='same')(x5)
+                96, 4, strides=2, padding='same')(x)
         ],
         axis=3
     )
@@ -215,7 +206,8 @@ def MobileUNet_v2(
 def load_backbone_weights(model, dim):
     # Load weights.
     # https://github.com/JonathanCMitchell/mobilenet_v2_keras/releases/download/v1.1/mobilenet_v2_weights_tf_dim_ordering_tf_kernels_1.0_224.h5
-    model_name = ('mobilenet_v2_weights_tf_dim_ordering_tf_kernels_1.0_' + str(dim) + '.h5')
+    model_name = (
+        'mobilenet_v2_weights_tf_dim_ordering_tf_kernels_1.0_' + str(dim) + '.h5')
     weigh_path = BASE_WEIGHT_PATH + model_name
     weights_path = keras.utils.get_file(
         model_name, weigh_path, cache_subdir='models')
@@ -230,17 +222,18 @@ if __name__ == "__main__":
 
     input_tensor = layers.Input(shape=(224, 224, 3), name='input_1')
     net = network(
-        input_tensor=input_tensor
+        input_tensor=input_tensor,
+        num_classes=3
     )
 
     # Create model.
     model = keras.models.Model(input_tensor, net)
 
-    load_backbone_weights(model, 1.0, 224)
+    load_backbone_weights(model, 224)
 
     model.summary()
 
     if not os.path.exists('./dist'):
         os.makedirs('./dist/')
 
-    model.save('./dist/mobilenetv2.h5')
+    model.save('./dist/model_mobilenetv2.h5')

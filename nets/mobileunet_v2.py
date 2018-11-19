@@ -229,7 +229,7 @@ def MobileUNet_v2(
     # conv_last = layers.Conv2D(3, 1)(up4)
     # print('conv_last: {}'.format(conv_last.shape))
 
-    conv_score = layers.Conv2D(num_classes, 1)(up4)
+    conv_score = layers.Conv2D(num_classes, 1, activation = 'sigmoid', name='output_1')(up4)
     print('conv_score: {}'.format(conv_score.shape))
 
     out = conv_score

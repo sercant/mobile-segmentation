@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
     model.compile(
         optimizer=optimizers.Adam(),
-        loss=my_loss,
+        loss='binary_crossentropy',
         metrics=['accuracy', dice_coef, recall, precision, f1_score]
     )
 
@@ -63,7 +63,8 @@ if __name__ == "__main__":
         save_best_only=True,
         verbose=1)
     # es = callbacks.EarlyStopping(patience=10, verbose=1)
-    rlrop = callbacks.ReduceLROnPlateau(factor=0.1, patience=3, min_lr=0.00001, verbose=1)
+    rlrop = callbacks.ReduceLROnPlateau(
+        factor=0.1, patience=3, min_lr=0.00001, verbose=1)
 
     training_generator = coco_generator(cat_nms, coco_path, subset='train',
                                         batch_size=BATCH_SIZE, image_sq=IMAGE_SQ_SIZE, mask_sq=int(IMAGE_SQ_SIZE / 2))

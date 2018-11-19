@@ -6,8 +6,8 @@ from keras import layers, optimizers, callbacks
 import numpy as np
 
 from datasets.coco_dataset import DataGenerator as coco_generator
-from nets.mobileunet_v2 import network
-from nets.mobileunet_v2 import load_backbone_weights
+from nets.deeplabv3p import network
+from nets.deeplabv3p import load_backbone_weights
 # from nets.unet import unet, load_unet_weights
 from utils.loss import dice_coef, dice_coef_loss, recall, precision, f1_score, binary_crossentropy, my_loss
 

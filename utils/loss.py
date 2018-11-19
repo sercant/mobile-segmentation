@@ -24,6 +24,8 @@ def precision(y_true, y_pred):
 
     return true_positives / (predicted_positives + K.epsilon())
 
+def my_loss(target_masks, pred_masks):
+    return tf.nn.softmax_cross_entropy_with_logits_v2(logits=pred_masks, labels=target_masks)
 
 def recall(y_true, y_pred):
     y_true_f = K.flatten(y_true)

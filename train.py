@@ -75,5 +75,5 @@ if __name__ == "__main__":
         generator=training_generator,
         validation_data=validation_generator,
         epochs=NUM_EPOCH,
-        callbacks=[es, rlrop, tensorboard, checkpoint]
+        callbacks=[rlrop, tensorboard, checkpoint]
     )

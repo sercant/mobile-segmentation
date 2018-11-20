@@ -9,14 +9,14 @@ from datasets.coco_dataset import DataGenerator as coco_generator
 from nets.deeplabv3p import network
 from nets.deeplabv3p import load_backbone_weights
 # from nets.unet import unet, load_unet_weights
-from utils.loss import dice_coef, dice_coef_loss, recall, precision, f1_score, binary_crossentropy, my_loss
+from utils.loss import dice_coef, dice_coef_loss, recall, precision, f1_score, binary_crossentropy, my_loss, bce_dice_loss, jaccard_coef
 
 if __name__ == "__main__":
     cat_nms = ['book', 'keyboard', 'apple']
 
-    BATCH_SIZE = 32
+    BATCH_SIZE = 16
     NUM_EPOCH = 100
-    IMAGE_SQ_SIZE = 224
+    IMAGE_SQ_SIZE = 512
 
     coco_path = './data/coco/'
     log_path = './logs/'
@@ -52,8 +52,8 @@ if __name__ == "__main__":
 
     model.compile(
         optimizer=optimizers.Adam(),
-        loss='binary_crossentropy',
-        metrics=['accuracy', dice_coef, recall, precision, f1_score]
+        loss=bce_dice_loss,
+        metrics=['accuracy', jaccard_coef, recall, precision, f1_score]
     )
 
     tensorboard = callbacks.TensorBoard(log_dir=log_path)
@@ -67,9 +67,9 @@ if __name__ == "__main__":
         factor=0.1, patience=3, min_lr=0.00001, verbose=1)
 
     training_generator = coco_generator(cat_nms, coco_path, subset='train',
-                                        batch_size=BATCH_SIZE, image_sq=IMAGE_SQ_SIZE, mask_sq=int(IMAGE_SQ_SIZE / 2))
+                                        batch_size=BATCH_SIZE, image_sq=IMAGE_SQ_SIZE, mask_sq=int(IMAGE_SQ_SIZE), shuffle=True)
     validation_generator = coco_generator(
-        cat_nms, coco_path, subset='val', batch_size=BATCH_SIZE, image_sq=IMAGE_SQ_SIZE, mask_sq=int(IMAGE_SQ_SIZE / 2))
+        cat_nms, coco_path, subset='val', batch_size=BATCH_SIZE, image_sq=IMAGE_SQ_SIZE, mask_sq=int(IMAGE_SQ_SIZE), shuffle=False)
 
     # Train model on dataset
     model.fit_generator(

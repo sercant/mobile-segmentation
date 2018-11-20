@@ -1,8 +1,6 @@
 import numpy as np
 
-from keras.models import Model
 from keras import layers
-from keras.layers import Input
 from keras.layers import Activation
 from keras.layers import Concatenate
 from keras.layers import Add
@@ -14,7 +12,6 @@ from keras.layers import ZeroPadding2D
 from keras.layers import AveragePooling2D
 from keras.engine import Layer
 from keras.engine import InputSpec
-from keras.engine.topology import get_source_inputs
 from keras import backend as K
 from keras.applications import imagenet_utils
 from keras.utils import conv_utils
@@ -467,7 +464,7 @@ def Deeplabv3(input_tensor, num_classes=21):
     else:
         last_layer_name = 'custom_logits_semantic'
 
-    x = Conv2D(num_classes, 1, padding='same', name=last_layer_name, activation='sigmoid')(x)
+    x = Conv2D(num_classes, 1, padding='same', name=last_layer_name)(x)
     x = BilinearUpsampling(output_size=(input_shape[0], input_shape[1]))(x)
 
     # # Ensure that the model takes into account
@@ -516,7 +513,7 @@ if __name__ == "__main__":
     input_tensor = layers.Input(shape=(512, 512, 3), name='input_1')
     net = network(
         input_tensor=input_tensor,
-        num_classes=3
+        num_classes=21
     )
 
     # Create model.
@@ -529,4 +526,4 @@ if __name__ == "__main__":
     if not os.path.exists('./dist'):
         os.makedirs('./dist/')
 
-    model.save('./dist/model_mobilenetv2.h5')
+    model.save('./dist/model_deeplab.h5')

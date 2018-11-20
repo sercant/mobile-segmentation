@@ -1,8 +1,17 @@
 from keras import backend as K
 import tensorflow as tf
+from keras.losses import binary_crossentropy
 
 smooth = 1.
 
+def jaccard_coef(y_true, y_pred):
+    y_true_f = K.flatten(y_true)
+    y_pred_f = K.flatten(y_pred)
+    intersection = K.sum(y_true_f * y_pred_f)
+    return (intersection + 1.0) / (K.sum(y_true_f) + K.sum(y_pred_f) - intersection + 1.0)
+
+def bce_dice_loss(y_true,y_pred):
+    return binary_crossentropy(y_true, y_pred) + 1. - jaccard_coef(y_true, y_pred)
 
 def dice_coef(y_true, y_pred):
     y_true_f = K.flatten(y_true)

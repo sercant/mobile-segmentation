@@ -6,6 +6,7 @@ import urllib.request
 import warnings
 
 import keras
+from keras.applications import imagenet_utils
 import numpy as np
 import skimage
 import scipy
@@ -16,58 +17,61 @@ from datasets.coco import mask as maskUtils
 
 DEFAULT_DATASET_YEAR = "2017"
 
-def resize_image(image, min_dim=224):
-    # Keep track of image dtype and return results in the same dtype
-    image_dtype = image.dtype
-    # Default window (y1, x1, y2, x2) and default scale == 1.
-    h, w = image.shape[:2]
-    window = (0, 0, h, w)
-    scale = 1
-    padding = [(0, 0), (0, 0), (0, 0)]
-    crop = None
+resize_image = utils.resize_image
+resize_mask = utils.resize_mask
 
-    # Scale?
-    if min_dim:
-        scale = min_dim / min(h, w)
+# def resize_image(image, min_dim=224):
+#     # Keep track of image dtype and return results in the same dtype
+#     image_dtype = image.dtype
+#     # Default window (y1, x1, y2, x2) and default scale == 1.
+#     h, w = image.shape[:2]
+#     window = (0, 0, h, w)
+#     scale = 1
+#     padding = [(0, 0), (0, 0), (0, 0)]
+#     crop = None
 
-    # Resize image using bilinear interpolation
-    if scale != 1:
-        image = skimage.transform.resize(
-            image, (round(h * scale), round(w * scale)),
-            order=1, mode="constant", preserve_range=True) # , anti_aliasing=scale<1.)
+#     # Scale?
+#     if min_dim:
+#         scale = min_dim / min(h, w)
 
-    # Need padding or cropping?
-    # Pick a random crop
-    h, w = image.shape[:2]
-    if w != min_dim or h != min_dim:
-        y = np.random.randint(0, (h - min_dim)) if h != min_dim else 0
-        x = np.random.randint(0, (w - min_dim)) if w != min_dim else 0
-        crop = (y, x, min_dim, min_dim)
-        image = image[y:y + min_dim, x:x + min_dim]
-        window = (0, 0, min_dim, min_dim)
-    return image.astype(image_dtype), window, scale, padding, crop
+#     # Resize image using bilinear interpolation
+#     if scale != 1:
+#         image = skimage.transform.resize(
+#             image, (round(h * scale), round(w * scale)),
+#             order=1, mode="constant", preserve_range=True) # , anti_aliasing=scale<1.)
+
+#     # Need padding or cropping?
+#     # Pick a random crop
+#     h, w = image.shape[:2]
+#     if w != min_dim or h != min_dim:
+#         y = np.random.randint(0, (h - min_dim)) if h != min_dim else 0
+#         x = np.random.randint(0, (w - min_dim)) if w != min_dim else 0
+#         crop = (y, x, min_dim, min_dim)
+#         image = image[y:y + min_dim, x:x + min_dim]
+#         window = (0, 0, min_dim, min_dim)
+#     return image.astype(image_dtype), window, scale, padding, crop
 
 
-def resize_mask(mask, scale, padding, crop=None):
-    """Resizes a mask using the given scale and padding.
-    Typically, you get the scale and padding from resize_image() to
-    ensure both, the image and the mask, are resized consistently.
+# def resize_mask(mask, scale, padding, crop=None):
+#     """Resizes a mask using the given scale and padding.
+#     Typically, you get the scale and padding from resize_image() to
+#     ensure both, the image and the mask, are resized consistently.
 
-    scale: mask scaling factor
-    padding: Padding to add to the mask in the form
-            [(top, bottom), (left, right), (0, 0)]
-    """
-    # Suppress warning from scipy 0.13.0, the output shape of zoom() is
-    # calculated with round() instead of int()
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        mask = scipy.ndimage.zoom(mask, zoom=[scale, scale, 1], order=0)
-    if crop is not None:
-        y, x, h, w = crop
-        mask = mask[y:y + h, x:x + w]
-    else:
-        mask = np.pad(mask, padding, mode='constant', constant_values=0)
-    return mask
+#     scale: mask scaling factor
+#     padding: Padding to add to the mask in the form
+#             [(top, bottom), (left, right), (0, 0)]
+#     """
+#     # Suppress warning from scipy 0.13.0, the output shape of zoom() is
+#     # calculated with round() instead of int()
+#     with warnings.catch_warnings():
+#         warnings.simplefilter("ignore")
+#         mask = scipy.ndimage.zoom(mask, zoom=[scale, scale, 1], order=0)
+#     if crop is not None:
+#         y, x, h, w = crop
+#         mask = mask[y:y + h, x:x + w]
+#     else:
+#         mask = np.pad(mask, padding, mode='constant', constant_values=0)
+#     return mask
 
 class CocoDataset(utils.Dataset):
     def load_coco(self, dataset_dir, subset, year=DEFAULT_DATASET_YEAR, cat_nms=None, class_ids=None,
@@ -391,14 +395,16 @@ class DataGenerator(keras.utils.Sequence):
         mask, class_ids = self.coco_dataset.load_mask(image_id)
 
         image, _, scale, padding, crop = resize_image(
-            image, min_dim=image_sq)
+            image, min_dim=image_sq, max_dim=image_sq)
         mask = resize_mask(mask, scale, padding, crop)
 
-        image = image / 128. - 1.
+        image = imagenet_utils.preprocess_input(image, mode='tf')
+        # image = image / 128. - 1.
         # image, mask = self.augmentation(image, mask, self.augmentation)
 
-        mask = resize_mask(mask, float(
-            mask_sq) / image_sq, [(0, 0), (0, 0), (0, 0)])
+        if image_sq != mask_sq:
+            mask = resize_mask(mask, float(
+                mask_sq) / image_sq, [(0, 0), (0, 0), (0, 0)])
         mask = self.mask_to_one_hot(mask, class_ids)
 
         return image, mask

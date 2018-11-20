@@ -18,6 +18,7 @@ if __name__ == "__main__":
     BATCH_SIZE = 32
     NUM_EPOCH = 100
     IMAGE_SQ_SIZE = 224
+    MASK_SQ_SIZE = 224
 
     coco_path = './data/coco/'
     log_path = './logs/'
@@ -68,9 +69,9 @@ if __name__ == "__main__":
         factor=0.1, patience=3, min_lr=0.00001, verbose=1)
 
     training_generator = coco_generator(cat_nms, coco_path, subset='train',
-                                        batch_size=BATCH_SIZE, image_sq=IMAGE_SQ_SIZE, mask_sq=int(IMAGE_SQ_SIZE), shuffle=True)
+                                        batch_size=BATCH_SIZE, image_sq=IMAGE_SQ_SIZE, mask_sq=MASK_SQ_SIZE, shuffle=True)
     validation_generator = coco_generator(
-        cat_nms, coco_path, subset='val', batch_size=BATCH_SIZE, image_sq=IMAGE_SQ_SIZE, mask_sq=int(IMAGE_SQ_SIZE), shuffle=False)
+        cat_nms, coco_path, subset='val', batch_size=BATCH_SIZE, image_sq=IMAGE_SQ_SIZE, mask_sq=MASK_SQ_SIZE, shuffle=False)
 
     # Train model on dataset
     model.fit_generator(

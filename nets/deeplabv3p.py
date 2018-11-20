@@ -464,7 +464,7 @@ def Deeplabv3(input_tensor, num_classes=21):
     else:
         last_layer_name = 'custom_logits_semantic'
 
-    x = Conv2D(num_classes, 1, padding='same', name=last_layer_name)(x)
+    x = Conv2D(num_classes, 1, padding='same', name=last_layer_name, activation='sigmoid')(x)
     x = BilinearUpsampling(output_size=(input_shape[0], input_shape[1]))(x)
 
     # # Ensure that the model takes into account

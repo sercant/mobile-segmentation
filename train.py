@@ -3,6 +3,7 @@ import os
 import keras
 from keras import backend as K
 from keras import layers, optimizers, callbacks
+from keras.metrics import categorical_accuracy
 import numpy as np
 
 from datasets.coco_dataset import DataGenerator as coco_generator
@@ -14,9 +15,9 @@ from utils.loss import dice_coef, dice_coef_loss, recall, precision, f1_score, b
 if __name__ == "__main__":
     cat_nms = ['book', 'keyboard', 'apple']
 
-    BATCH_SIZE = 16
+    BATCH_SIZE = 32
     NUM_EPOCH = 100
-    IMAGE_SQ_SIZE = 512
+    IMAGE_SQ_SIZE = 224
 
     coco_path = './data/coco/'
     log_path = './logs/'
@@ -53,7 +54,7 @@ if __name__ == "__main__":
     model.compile(
         optimizer=optimizers.Adam(),
         loss=bce_dice_loss,
-        metrics=['accuracy', jaccard_coef, recall, precision, f1_score]
+        metrics=['accuracy', categorical_accuracy, jaccard_coef, recall, precision, f1_score]
     )
 
     tensorboard = callbacks.TensorBoard(log_dir=log_path)

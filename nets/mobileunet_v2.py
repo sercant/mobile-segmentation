@@ -74,72 +74,54 @@ def MobileUNet_v2(
     x = layers.BatchNormalization(name='bn_Conv1')(x)
     x = layers.ReLU(6., name='Conv1_relu')(x)
 
-    block_id = 0
     x = _inverted_res_block(x, filters=16, alpha=alpha, stride=1,
-                            expansion=1, block_id=block_id)
-    block_id += 1
+                            expansion=1, block_id=0)
     x1 = x
     print('x1: {}'.format(x1.shape))
 
     x = _inverted_res_block(x, filters=24, alpha=alpha, stride=2,
-                            expansion=6, block_id=block_id)
-    block_id += 1
+                            expansion=6, block_id=1)
     x = _inverted_res_block(x, filters=24, alpha=alpha, stride=1,
-                            expansion=6, block_id=block_id)
-    block_id += 1
+                            expansion=6, block_id=2)
     x2 = x
     print('x2: {}'.format(x2.shape))
 
     x = _inverted_res_block(x, filters=32, alpha=alpha, stride=2,
-                            expansion=6, block_id=block_id)
-    block_id += 1
+                            expansion=6, block_id=3)
     x = _inverted_res_block(x, filters=32, alpha=alpha, stride=1,
-                            expansion=6, block_id=block_id)
-    block_id += 1
+                            expansion=6, block_id=4)
     x = _inverted_res_block(x, filters=32, alpha=alpha, stride=1,
-                            expansion=6, block_id=block_id)
-    block_id += 1
+                            expansion=6, block_id=5)
     x3 = x
     print('x3: {}'.format(x3.shape))
 
     x = _inverted_res_block(x, filters=64, alpha=alpha, stride=2,
-                            expansion=6, block_id=block_id)
-    block_id += 1
+                            expansion=6, block_id=6)
     x = _inverted_res_block(x, filters=64, alpha=alpha, stride=1,
-                            expansion=6, block_id=block_id)
-    block_id += 1
+                            expansion=6, block_id=7)
     x = _inverted_res_block(x, filters=64, alpha=alpha, stride=1,
-                            expansion=6, block_id=block_id)
-    block_id += 1
+                            expansion=6, block_id=8)
     x = _inverted_res_block(x, filters=64, alpha=alpha, stride=1,
-                            expansion=6, block_id=block_id)
-    block_id += 1
+                            expansion=6, block_id=9)
 
     x = _inverted_res_block(x, filters=96, alpha=alpha, stride=1,
-                            expansion=6, block_id=block_id)
-    block_id += 1
+                            expansion=6, block_id=10)
     x = _inverted_res_block(x, filters=96, alpha=alpha, stride=1,
-                            expansion=6, block_id=block_id)
-    block_id += 1
+                            expansion=6, block_id=11)
     x = _inverted_res_block(x, filters=96, alpha=alpha, stride=1,
-                            expansion=6, block_id=block_id)
-    block_id += 1
+                            expansion=6, block_id=12)
     x4 = x
     print('x4: {}'.format(x4.shape))
 
     x = _inverted_res_block(x, filters=160, alpha=alpha, stride=2,
-                            expansion=6, block_id=block_id)
-    block_id += 1
+                            expansion=6, block_id=13)
     x = _inverted_res_block(x, filters=160, alpha=alpha, stride=1,
-                            expansion=6, block_id=block_id)
-    block_id += 1
+                            expansion=6, block_id=14)
     x = _inverted_res_block(x, filters=160, alpha=alpha, stride=1,
-                            expansion=6, block_id=block_id)
-    block_id += 1
+                            expansion=6, block_id=15)
 
     x = _inverted_res_block(x, filters=320, alpha=alpha, stride=1,
-                            expansion=6, block_id=block_id)
-    block_id += 1
+                            expansion=6, block_id=16)
 
     # no alpha applied to last conv as stated in the paper:
     # if the width multiplier is greater than 1 we
@@ -171,11 +153,7 @@ def MobileUNet_v2(
         axis=3
     )
     up1 = _inverted_res_block(up1, filters=96, alpha=alpha, stride=1,
-                              expansion=6, block_id=block_id)
-    block_id += 1
-    up1 = _inverted_res_block(up1, filters=96, alpha=alpha, stride=1,
-                              expansion=6, block_id=block_id)
-    block_id += 1
+                              expansion=6, block_id=17)
     print('up1: {}'.format(up1.shape))
 
     up2 = layers.concatenate(
@@ -187,11 +165,7 @@ def MobileUNet_v2(
         axis=3
     )
     up2 = _inverted_res_block(up2, filters=32, alpha=alpha, stride=1,
-                              expansion=6, block_id=block_id)
-    block_id += 1
-    up2 = _inverted_res_block(up2, filters=32, alpha=alpha, stride=1,
-                              expansion=6, block_id=block_id)
-    block_id += 1
+                              expansion=6, block_id=18)
     print('up2: {}'.format(up2.shape))
 
     up3 = layers.concatenate(
@@ -203,11 +177,7 @@ def MobileUNet_v2(
         axis=3
     )
     up3 = _inverted_res_block(up3, filters=24, alpha=alpha, stride=1,
-                              expansion=6, block_id=block_id)
-    block_id += 1
-    up3 = _inverted_res_block(up3, filters=24, alpha=alpha, stride=1,
-                              expansion=6, block_id=block_id)
-    block_id += 1
+                              expansion=6, block_id=19)
     print('up3: {}'.format(up3.shape))
 
     up4 = layers.concatenate(
@@ -219,23 +189,18 @@ def MobileUNet_v2(
         axis=3
     )
     up4 = _inverted_res_block(up4, filters=16, alpha=alpha, stride=1,
-                              expansion=6, block_id=block_id)
-    block_id += 1
-    up4 = _inverted_res_block(up4, filters=16, alpha=alpha, stride=1,
-                              expansion=6, block_id=block_id)
-    block_id += 1
+                              expansion=6, block_id=20)
     print('up4: {}'.format(up4.shape))
 
-    # conv_last = layers.Conv2D(3, 1)(up4)
-    # print('conv_last: {}'.format(conv_last.shape))
+    conv_last = layers.Conv2D(3, 1)(up4)
+    print('conv_last: {}'.format(conv_last.shape))
 
-    conv_score = layers.Conv2D(num_classes, 1, activation = 'sigmoid', name='output_1')(up4)
+    conv_score = layers.Conv2D(num_classes, 1, activation = 'sigmoid', name='output_1')(conv_last)
     print('conv_score: {}'.format(conv_score.shape))
 
-    out = conv_score
     # out = layers.Activation('sigmoid', name='output_1')(conv_score)
 
-    return out
+    return conv_score
 
 
 def load_backbone_weights(model, dim):

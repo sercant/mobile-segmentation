@@ -10,7 +10,7 @@ from datasets.coco_dataset import DataGenerator as coco_generator
 from nets.deeplabv3p import network
 from nets.deeplabv3p import load_backbone_weights
 # from nets.unet import unet, load_unet_weights
-from utils.loss import dice_coef, dice_coef_loss, recall, precision, f1_score, binary_crossentropy, my_loss, bce_dice_loss, jaccard_coef
+from utils.loss import dice_coef, dice_coef_loss, recall, precision, f1_score, binary_crossentropy, my_loss, bce_dice_loss, jaccard_coef, mean_iou
 
 if __name__ == "__main__":
     cat_nms = ['book', 'keyboard', 'apple']
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     model.compile(
         optimizer=optimizers.Adam(),
         loss=bce_dice_loss,
-        metrics=['accuracy', categorical_accuracy, jaccard_coef, recall, precision, f1_score]
+        metrics=['accuracy', mean_iou, jaccard_coef, recall, precision, f1_score]
     )
 
     tensorboard = callbacks.TensorBoard(log_dir=log_path)

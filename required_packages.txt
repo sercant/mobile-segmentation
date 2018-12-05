@@ -4,3 +4,4 @@ mrcnn
 scikit-image
 pycocotools
 imgaug
+opencv-python

@@ -302,7 +302,7 @@ class CocoDataset(utils.Dataset):
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
 
-    def __init__(self, cat_nms, path='./data/coco', subset='train', batch_size=32, image_sq=224, mask_sq=112, shuffle=True, n_channels=3):
+    def __init__(self, cat_nms, path='./data/coco', subset='train', batch_size=32, image_sq=224, mask_sq=112, shuffle=True, n_channels=3, augment=None):
         'Initialization'
         self.image_sq = image_sq
         self.mask_sq = mask_sq
@@ -312,6 +312,7 @@ class DataGenerator(keras.utils.Sequence):
         self.n_classes = len(cat_nms)
         self.shuffle = shuffle
         self.n_channels = n_channels
+        self.augment = augment
 
         coco_dataset = CocoDataset()
         coco_dataset.load_coco(path, subset, year='2017',
@@ -359,36 +360,35 @@ class DataGenerator(keras.utils.Sequence):
 
         return np.moveaxis(output, 0, -1).astype(np.uint8)
 
-    # def augmentation(self, image, mask, augmentation):
-    #     # Augmentation
-    #     # This requires the imgaug lib (https://github.com/aleju/imgaug)
-    #     import imgaug
+    def augmentation(self, image, mask, augmentation):
+        # Augmentation
+        # This requires the imgaug lib (https://github.com/aleju/imgaug)
+        import imgaug
 
-    #     # Augmenters that are safe to apply to masks
-    #     # Some, such as Affine, have settings that make them unsafe, so always
-    #     # test your augmentation on masks
-    #     MASK_AUGMENTERS = ["Sequential", "SomeOf", "OneOf", "Sometimes",
-    #                        "Fliplr", "Flipud", "CropAndPad",
-    #                        "Affine", "PiecewiseAffine"]
+        # Augmenters that are safe to apply to masks
+        # Some, such as Affine, have settings that make them unsafe, so always
+        # test your augmentation on masks
+        MASK_AUGMENTERS = ["Sequential", "SomeOf", "OneOf", "Sometimes",
+                           "Fliplr", "Flipud", "CropAndPad",
+                           "Affine", "PiecewiseAffine"]
 
-    #     def hook(images, augmenter, parents, default):
-    #         """Determines which augmenters to apply to masks."""
-    #         return augmenter.__class__.__name__ in MASK_AUGMENTERS
+        def hook(images, augmenter, parents, default):
+            """Determines which augmenters to apply to masks."""
+            return augmenter.__class__.__name__ in MASK_AUGMENTERS
 
-    #     # Store shapes before augmentation to compare
-    #     image_shape = image.shape
-    #     mask_shape = mask.shape
-    #     # Make augmenters deterministic to apply similarly to images and masks
-    #     det = augmentation.to_deterministic()
-    #     image = det.augment_image(image)
-    #     # Change mask to np.uint8 because imgaug doesn't support np.bool
-    #     mask = det.augment_image(mask.astype(np.uint8),
-    #                              hooks=imgaug.HooksImages(activator=hook))
-    #     # Verify that shapes didn't change
-    #     assert image.shape == image_shape, "Augmentation shouldn't change image size"
-    #     assert mask.shape == mask_shape, "Augmentation shouldn't change mask size"
+        # Store shapes before augmentation to compare
+        image_shape = image.shape
+        mask_shape = mask.shape
+        # Make augmenters deterministic to apply similarly to images and masks
+        det = augmentation.to_deterministic()
+        image = det.augment_image(image)
+        # Change mask to np.uint8 because imgaug doesn't support np.bool
+        mask = det.augment_image(mask, hooks=imgaug.HooksImages(activator=hook))
+        # Verify that shapes didn't change
+        assert image.shape == image_shape, "Augmentation shouldn't change image size"
+        assert mask.shape == mask_shape, "Augmentation shouldn't change mask size"
 
-    #     return image, mask
+        return image, mask
 
     def load_data(self, image_id, image_sq, mask_sq):
         image = self.coco_dataset.load_image(image_id)
@@ -398,9 +398,11 @@ class DataGenerator(keras.utils.Sequence):
             image, min_dim=image_sq, max_dim=image_sq)
         mask = resize_mask(mask, scale, padding, crop)
 
+        if self.augment:
+            image, mask = self.augmentation(image, mask, self.augment)
+
         image = imagenet_utils.preprocess_input(image, mode='tf')
         # image = image / 128. - 1.
-        # image, mask = self.augmentation(image, mask, self.augmentation)
 
         if image_sq != mask_sq:
             mask = resize_mask(mask, float(

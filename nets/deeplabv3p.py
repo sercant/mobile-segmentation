@@ -1,17 +1,9 @@
 import numpy as np
 
+import keras
 from keras import layers
-from keras.layers import Activation
-from keras.layers import Concatenate
-from keras.layers import Add
-from keras.layers import Dropout
-from keras.layers import BatchNormalization
-from keras.layers import Conv2D
-from keras.layers import DepthwiseConv2D
-from keras.layers import ZeroPadding2D
-from keras.layers import AveragePooling2D
-from keras.engine import Layer
-from keras.engine import InputSpec
+from keras.layers import Activation, Concatenate, Add, Dropout, BatchNormalization, Conv2D, DepthwiseConv2D, ZeroPadding2D, AveragePooling2D
+from keras.engine import Layer, InputSpec
 from keras import backend as K
 from keras.applications import imagenet_utils
 from keras.utils import conv_utils
@@ -243,7 +235,31 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id, ski
     return x
 
 
-def Deeplabv3(input_tensor, num_classes=21):
+def set_trainable(keras_model, layer_ind, indent=0):
+    """Sets model layers as trainable if their names match
+    the given regular expression.
+    """
+    if layer_ind == 0:
+        return
+
+    # In multi-GPU training, we wrap the model. Get layers
+    # of the inner model because they have the weights.
+    layers = keras_model.inner_model.layers if hasattr(keras_model, "inner_model")\
+        else keras_model.layers
+
+    for i in range(layer_ind, len(layers)):
+        layer = layers[i]
+
+        if not layer.weights:
+            continue
+        # Update layer. If layer is a container, update inner layer.
+        if layer.__class__.__name__ == 'TimeDistributed':
+            layer.layer.trainable = False
+        else:
+            layer.trainable = False
+
+
+def Deeplabv3(input_tensor, num_classes=21, trainable_layers='all'):
     """ Instantiates the Deeplabv3+ architecture
     Optionally loads weights pre-trained
     on PASCAL VOC. This model is available for TensorFlow only,
@@ -350,9 +366,9 @@ def Deeplabv3(input_tensor, num_classes=21):
     OS = 8
     first_block_filters = _make_divisible(32 * alpha, 8)
     x = Conv2D(first_block_filters,
-                kernel_size=3,
-                strides=(2, 2), padding='same',
-                use_bias=False, name='Conv')(img_input)
+               kernel_size=3,
+               strides=(2, 2), padding='same',
+               use_bias=False, name='Conv')(img_input)
     x = BatchNormalization(
         epsilon=1e-3, momentum=0.999, name='Conv_BN')(x)
     x = Activation(relu6, name='Conv_Relu6')(x)
@@ -399,18 +415,23 @@ def Deeplabv3(input_tensor, num_classes=21):
     x = _inverted_res_block(x, filters=320, alpha=alpha, stride=1, rate=4,
                             expansion=6, block_id=16, skip_connection=False)
 
+    m = keras.models.Model(input_tensor, x)
+    num_encoder_layers = len(m.layers)
+
     # end of feature extractor
 
     # branching for Atrous Spatial Pyramid Pooling
 
     # Image Feature branch
     #out_shape = int(np.ceil(input_shape[0] / OS))
-    b4 = AveragePooling2D(pool_size=(int(np.ceil(input_shape[0] / OS)), int(np.ceil(input_shape[1] / OS))))(x)
+    b4 = AveragePooling2D(pool_size=(
+        int(np.ceil(input_shape[0] / OS)), int(np.ceil(input_shape[1] / OS))))(x)
     b4 = Conv2D(256, (1, 1), padding='same',
                 use_bias=False, name='image_pooling')(b4)
     b4 = BatchNormalization(name='image_pooling_BN', epsilon=1e-5)(b4)
     b4 = Activation('relu')(b4)
-    b4 = BilinearUpsampling((int(np.ceil(input_shape[0] / OS)), int(np.ceil(input_shape[1] / OS))))(b4)
+    b4 = BilinearUpsampling(
+        (int(np.ceil(input_shape[0] / OS)), int(np.ceil(input_shape[1] / OS))))(b4)
 
     # simple 1x1
     b0 = Conv2D(256, (1, 1), padding='same', use_bias=False, name='aspp0')(x)
@@ -459,14 +480,23 @@ def Deeplabv3(input_tensor, num_classes=21):
     #                    depth_activation=True, epsilon=1e-5)
 
     # you can use it with arbitary number of num_classes
-    if num_classes == 21:
-        last_layer_name = 'logits_semantic'
-    else:
-        last_layer_name = 'custom_logits_semantic'
+    # if num_classes == 21:
+    #     last_layer_name = 'logits_semantic'
+    # else:
+    last_layer_name = 'output_1'
 
-    x = Conv2D(num_classes, 1, padding='same', name=last_layer_name, activation='sigmoid')(x)
-    x = BilinearUpsampling(output_size=(input_shape[0], input_shape[1]))(x)
+    x = Conv2D(num_classes, 1, padding='same',
+               activation='sigmoid', name='sigmoid_softmax')(x)
+    x = BilinearUpsampling(output_size=(input_shape[0], input_shape[1]),
+                           name=last_layer_name)(x)
 
+    m = keras.models.Model(input_tensor, x)
+
+    m = keras.models.Model(input_tensor, x)
+    # num_decoder_layers = len(m.layers)
+
+    set_trainable(m, 0 if trainable_layers ==
+                  'all' else num_encoder_layers)
     # # Ensure that the model takes into account
     # # any potential predecessors of `input_tensor`.
     # if input_tensor is not None:
@@ -476,7 +506,7 @@ def Deeplabv3(input_tensor, num_classes=21):
 
     # model = Model(inputs, x, name='deeplabv3plus')
 
-    return x
+    return m
 
 
 def preprocess_input(x):
@@ -508,16 +538,14 @@ network = Deeplabv3
 
 if __name__ == "__main__":
     import os
-    import keras
 
     input_tensor = layers.Input(shape=(512, 512, 3), name='input_1')
-    net = network(
+
+    # Create model.
+    model = network(
         input_tensor=input_tensor,
         num_classes=21
     )
-
-    # Create model.
-    model = keras.models.Model(input_tensor, net)
 
     load_backbone_weights(model, 512)
 

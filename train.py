@@ -1,17 +1,13 @@
 import os
 
-# import keras
-# from keras import backend as K
 from keras import layers, optimizers, callbacks
-# from keras.metrics import categorical_accuracy
 import numpy as np
 import imgaug
 
 from datasets.coco_dataset import DataGenerator as coco_generator
 from nets.deeplabv3p import network
 from nets.deeplabv3p import load_backbone_weights
-# from nets.unet import unet, load_unet_weights
-from utils.loss import dice_coef, dice_coef_loss, recall, precision, f1_score, binary_crossentropy, my_loss, bce_dice_loss, jaccard_coef, mean_iou
+from utils.loss import recall, precision, f1_score, bce_dice_loss, jaccard_coef, mean_iou
 
 cat_nms = ['book', 'keyboard', 'apple']
 
@@ -47,7 +43,7 @@ def train(num_epoch, layer_str, checkpoint_file, checkpoint_save_file, learning_
     model.summary()
 
     model.compile(
-        optimizer=optimizers.Adam(lr=learning_rate),
+        optimizer=optimizers.Adam(),
         loss=bce_dice_loss,
         metrics=['accuracy', mean_iou, jaccard_coef,
                  recall, precision, f1_score]
@@ -59,9 +55,9 @@ def train(num_epoch, layer_str, checkpoint_file, checkpoint_save_file, learning_
         save_weights_only=True,
         save_best_only=True,
         verbose=1)
-    # es = callbacks.EarlyStopping(patience=10, verbose=1)
-    # rlrop = callbacks.ReduceLROnPlateau(
-    #     factor=0.1, patience=5, min_lr=0.0001, verbose=1)
+    es = callbacks.EarlyStopping(patience=10, verbose=1)
+    rlrop = callbacks.ReduceLROnPlateau(
+        factor=0.1, patience=5, min_lr=0.0001, verbose=1)
 
     augmentation = imgaug.augmenters.Fliplr(0.5)
     training_generator = coco_generator(cat_nms, coco_path, subset='train',
@@ -76,7 +72,8 @@ def train(num_epoch, layer_str, checkpoint_file, checkpoint_save_file, learning_
         validation_data=validation_generator,
         epochs=num_epoch,
         callbacks=[
-            # rlrop,
+            es,
+            rlrop,
             tensorboard,
             checkpoint
         ]
@@ -86,8 +83,6 @@ def train(num_epoch, layer_str, checkpoint_file, checkpoint_save_file, learning_
 if __name__ == "__main__":
 
     train(50, 'heads', checkpoint_file=checkpoint_path+'/weights_heads.h5',
-          checkpoint_save_file=checkpoint_path+'/weights_heads.h5',
-          learning_rate=0.001)
+          checkpoint_save_file=checkpoint_path+'/weights_heads.h5')
     train(100, 'all', checkpoint_file=checkpoint_path+'/weights_heads.h5',
-          checkpoint_save_file=checkpoint_path+'/weights_all.h5',
-          learning_rate=0.0001)
+          checkpoint_save_file=checkpoint_path+'/weights_all.h5')

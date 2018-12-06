@@ -491,8 +491,6 @@ def Deeplabv3(input_tensor, num_classes=21, trainable_layers='all'):
                            name=last_layer_name)(x)
 
     m = keras.models.Model(input_tensor, x)
-
-    m = keras.models.Model(input_tensor, x)
     # num_decoder_layers = len(m.layers)
 
     set_trainable(m, 0 if trainable_layers ==

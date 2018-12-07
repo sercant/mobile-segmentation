@@ -1,18 +1,11 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import hashlib
 import io
 import json
 import os
 import sys
-import contextlib2
+import math
+
 import numpy as np
 import PIL.Image
-
-import math
-import random
 
 from pycocotools import mask
 import tensorflow as tf

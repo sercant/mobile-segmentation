@@ -1,0 +1,3 @@
+[submodule "tf_models"]
+	path = tf_models
+	url = git@github.com:tensorflow/models.git

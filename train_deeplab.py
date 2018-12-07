@@ -48,13 +48,13 @@ flags.DEFINE_integer('task', 0, 'The task ID.')
 flags.DEFINE_string('train_logdir', 'logs',
                     'Where the checkpoint and logs are stored.')
 
-flags.DEFINE_integer('log_steps', 10,
+flags.DEFINE_integer('log_steps', 100,
                      'Display logging information at every log_steps.')
 
-flags.DEFINE_integer('save_interval_secs', 1200,
+flags.DEFINE_integer('save_interval_secs', 60,
                      'How often, in seconds, we save the model to disk.')
 
-flags.DEFINE_integer('save_summaries_secs', 600,
+flags.DEFINE_integer('save_summaries_secs', 30,
                      'How often, in seconds, we compute the summaries.')
 
 flags.DEFINE_boolean('save_summaries_images', False,

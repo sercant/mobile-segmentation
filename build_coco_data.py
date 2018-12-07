@@ -23,10 +23,6 @@ sys.path.append(os.getcwd() + '/tf_models/research')
 sys.path.append(os.getcwd() + '/tf_models/research/slim')
 
 import build_data
-from object_detection.utils import label_map_util
-from object_detection.utils import dataset_util
-from object_detection.dataset_tools import tf_record_creation_util
-
 
 flags = tf.app.flags
 tf.flags.DEFINE_string('dataset_dir', './data/coco',
@@ -82,8 +78,6 @@ def _convert_dataset(dataset_split, dataset_dir, cat_nms=['apple', 'book', 'keyb
     with tf.gfile.GFile(dataset_dir + '/annotations/instances_{}2017.json'.format(dataset_split), 'r') as fid:
         groundtruth_data = json.load(fid)
         images = groundtruth_data['images']
-        # category_index = label_map_util.create_category_index(
-        #     groundtruth_data['categories'])
 
         cat_ids = getCatIds(groundtruth_data, catNms=cat_nms)
 

@@ -1,17 +1,20 @@
-import tensorflow as tf
-import six
+
 import sys
 import os
 
 sys.path.append(os.getcwd() + '/tf_models/research/slim')
 sys.path.append(os.getcwd() + '/tf_models/research')
 
-from deeplab import common
-from deeplab import model
-from deeplab_overrides.datasets import segmentation_dataset
-from deeplab.utils import input_generator
-from deeplab.utils import train_utils
+import six
+import tensorflow as tf
+
 from deployment import model_deploy
+from deeplab.utils import train_utils
+from deeplab.utils import input_generator
+from deeplab_overrides.datasets import segmentation_dataset
+from deeplab import model
+from deeplab import common
+
 
 slim = tf.contrib.slim
 
@@ -22,8 +25,6 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 # Settings for multi-GPUs/multi-replicas training.
-
-flags.DEFINE_integer('gpu', None, 'Which GPU to run on.')
 
 flags.DEFINE_integer('num_clones', 1, 'Number of clones to deploy.')
 
@@ -238,8 +239,7 @@ def main(unused_argv):
     tf.logging.info('Training on %s set', FLAGS.train_split)
 
     with tf.Graph().as_default() as graph:
-        with tf.device('/device:GPU:1'):
-            # with tf.device('/device:GPU:{}'.format(FLAGS.gpu) if FLAGS.gpu else config.inputs_device()):
+        with tf.device(config.inputs_device()):
             samples = input_generator.get(
                 dataset,
                 FLAGS.train_crop_size,
@@ -256,8 +256,8 @@ def main(unused_argv):
             inputs_queue = prefetch_queue.prefetch_queue(
                 samples, capacity=128 * config.num_clones)
 
-            # Create the global step on the device storing the variables.
-            # with tf.device('/device:GPU:{}'.format(FLAGS.gpu) if FLAGS.gpu else config.variables_device()):
+        # Create the global step on the device storing the variables.
+        with tf.device(config.variables_device()):
             global_step = tf.train.get_or_create_global_step()
 
             # Define the model and create clones.
@@ -274,59 +274,59 @@ def main(unused_argv):
             update_ops = tf.get_collection(
                 tf.GraphKeys.UPDATE_OPS, first_clone_scope)
 
-            # Gather initial summaries.
-            summaries = set(tf.get_collection(tf.GraphKeys.SUMMARIES))
+        # Gather initial summaries.
+        summaries = set(tf.get_collection(tf.GraphKeys.SUMMARIES))
 
-            # Add summaries for model variables.
-            for model_var in slim.get_model_variables():
-                summaries.add(tf.summary.histogram(model_var.op.name, model_var))
+        # Add summaries for model variables.
+        for model_var in slim.get_model_variables():
+            summaries.add(tf.summary.histogram(model_var.op.name, model_var))
 
-            # Add summaries for images, labels, semantic predictions
-            if FLAGS.save_summaries_images:
-                summary_image = graph.get_tensor_by_name(
-                    ('%s/%s:0' % (first_clone_scope, common.IMAGE)).strip('/'))
-                summaries.add(
-                    tf.summary.image('samples/%s' % common.IMAGE, summary_image))
+        # Add summaries for images, labels, semantic predictions
+        if FLAGS.save_summaries_images:
+            summary_image = graph.get_tensor_by_name(
+                ('%s/%s:0' % (first_clone_scope, common.IMAGE)).strip('/'))
+            summaries.add(
+                tf.summary.image('samples/%s' % common.IMAGE, summary_image))
 
-                first_clone_label = graph.get_tensor_by_name(
-                    ('%s/%s:0' % (first_clone_scope, common.LABEL)).strip('/'))
-                # Scale up summary image pixel values for better visualization.
-                pixel_scaling = max(1, 255 // dataset.num_classes)
-                summary_label = tf.cast(
-                    first_clone_label * pixel_scaling, tf.uint8)
-                summaries.add(
-                    tf.summary.image('samples/%s' % common.LABEL, summary_label))
+            first_clone_label = graph.get_tensor_by_name(
+                ('%s/%s:0' % (first_clone_scope, common.LABEL)).strip('/'))
+            # Scale up summary image pixel values for better visualization.
+            pixel_scaling = max(1, 255 // dataset.num_classes)
+            summary_label = tf.cast(
+                first_clone_label * pixel_scaling, tf.uint8)
+            summaries.add(
+                tf.summary.image('samples/%s' % common.LABEL, summary_label))
 
-                first_clone_output = graph.get_tensor_by_name(
-                    ('%s/%s:0' % (first_clone_scope, common.OUTPUT_TYPE)).strip('/'))
-                predictions = tf.expand_dims(tf.argmax(first_clone_output, 3), -1)
+            first_clone_output = graph.get_tensor_by_name(
+                ('%s/%s:0' % (first_clone_scope, common.OUTPUT_TYPE)).strip('/'))
+            predictions = tf.expand_dims(tf.argmax(first_clone_output, 3), -1)
 
-                summary_predictions = tf.cast(
-                    predictions * pixel_scaling, tf.uint8)
-                summaries.add(
-                    tf.summary.image(
-                        'samples/%s' % common.OUTPUT_TYPE, summary_predictions))
+            summary_predictions = tf.cast(
+                predictions * pixel_scaling, tf.uint8)
+            summaries.add(
+                tf.summary.image(
+                    'samples/%s' % common.OUTPUT_TYPE, summary_predictions))
 
-            # Add summaries for losses.
-            for loss in tf.get_collection(tf.GraphKeys.LOSSES, first_clone_scope):
-                summaries.add(tf.summary.scalar('losses/%s' % loss.op.name, loss))
+        # Add summaries for losses.
+        for loss in tf.get_collection(tf.GraphKeys.LOSSES, first_clone_scope):
+            summaries.add(tf.summary.scalar('losses/%s' % loss.op.name, loss))
 
-            # Build the optimizer based on the device specification.
-            # with tf.device('/device:GPU:{}'.format(FLAGS.gpu) if FLAGS.gpu else config.optimizer_device()):
-                learning_rate = train_utils.get_model_learning_rate(
-                    FLAGS.learning_policy, FLAGS.base_learning_rate,
-                    FLAGS.learning_rate_decay_step, FLAGS.learning_rate_decay_factor,
-                    FLAGS.training_number_of_steps, FLAGS.learning_power,
-                    FLAGS.slow_start_step, FLAGS.slow_start_learning_rate)
-                optimizer = tf.train.MomentumOptimizer(
-                    learning_rate, FLAGS.momentum)
-                summaries.add(tf.summary.scalar('learning_rate', learning_rate))
+        # Build the optimizer based on the device specification.
+        with tf.device(config.optimizer_device()):
+            learning_rate = train_utils.get_model_learning_rate(
+                FLAGS.learning_policy, FLAGS.base_learning_rate,
+                FLAGS.learning_rate_decay_step, FLAGS.learning_rate_decay_factor,
+                FLAGS.training_number_of_steps, FLAGS.learning_power,
+                FLAGS.slow_start_step, FLAGS.slow_start_learning_rate)
+            optimizer = tf.train.MomentumOptimizer(
+                learning_rate, FLAGS.momentum)
+            summaries.add(tf.summary.scalar('learning_rate', learning_rate))
 
-            startup_delay_steps = FLAGS.task * FLAGS.startup_delay_steps
-            for variable in slim.get_model_variables():
-                summaries.add(tf.summary.histogram(variable.op.name, variable))
+        startup_delay_steps = FLAGS.task * FLAGS.startup_delay_steps
+        for variable in slim.get_model_variables():
+            summaries.add(tf.summary.histogram(variable.op.name, variable))
 
-            # with tf.device('/device:GPU:{}'.format(FLAGS.gpu) if FLAGS.gpu else config.variables_device()):
+        with tf.device(config.variables_device()):
             total_loss, grads_and_vars = model_deploy.optimize_clones(
                 clones, optimizer)
             total_loss = tf.check_numerics(total_loss, 'Loss is inf or nan.')
@@ -349,37 +349,37 @@ def main(unused_argv):
             with tf.control_dependencies([update_op]):
                 train_tensor = tf.identity(total_loss, name='train_op')
 
-            # Add the summaries from the first clone. These contain the summaries
-            # created by model_fn and either optimize_clones() or _gather_clone_loss().
-            summaries |= set(
-                tf.get_collection(tf.GraphKeys.SUMMARIES, first_clone_scope))
+        # Add the summaries from the first clone. These contain the summaries
+        # created by model_fn and either optimize_clones() or _gather_clone_loss().
+        summaries |= set(
+            tf.get_collection(tf.GraphKeys.SUMMARIES, first_clone_scope))
 
-            # Merge all summaries together.
-            summary_op = tf.summary.merge(list(summaries))
+        # Merge all summaries together.
+        summary_op = tf.summary.merge(list(summaries))
 
-            # Soft placement allows placing on CPU ops without GPU implementation.
-            session_config = tf.ConfigProto(
-                allow_soft_placement=True, log_device_placement=False)
+        # Soft placement allows placing on CPU ops without GPU implementation.
+        session_config = tf.ConfigProto(
+            allow_soft_placement=True, log_device_placement=False)
 
-            # Start the training.
-            slim.learning.train(
-                train_tensor,
-                logdir=FLAGS.train_logdir,
-                log_every_n_steps=FLAGS.log_steps,
-                master=FLAGS.master,
-                number_of_steps=FLAGS.training_number_of_steps,
-                is_chief=(FLAGS.task == 0),
-                session_config=session_config,
-                startup_delay_steps=startup_delay_steps,
-                init_fn=train_utils.get_model_init_fn(
-                    FLAGS.train_logdir,
-                    FLAGS.tf_initial_checkpoint,
-                    FLAGS.initialize_last_layer,
-                    last_layers,
-                    ignore_missing_vars=True),
-                summary_op=summary_op,
-                save_summaries_secs=FLAGS.save_summaries_secs,
-                save_interval_secs=FLAGS.save_interval_secs)
+        # Start the training.
+        slim.learning.train(
+            train_tensor,
+            logdir=FLAGS.train_logdir,
+            log_every_n_steps=FLAGS.log_steps,
+            master=FLAGS.master,
+            number_of_steps=FLAGS.training_number_of_steps,
+            is_chief=(FLAGS.task == 0),
+            session_config=session_config,
+            startup_delay_steps=startup_delay_steps,
+            init_fn=train_utils.get_model_init_fn(
+                FLAGS.train_logdir,
+                FLAGS.tf_initial_checkpoint,
+                FLAGS.initialize_last_layer,
+                last_layers,
+                ignore_missing_vars=True),
+            summary_op=summary_op,
+            save_summaries_secs=FLAGS.save_summaries_secs,
+            save_interval_secs=FLAGS.save_interval_secs)
 
 
 if __name__ == '__main__':

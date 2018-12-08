@@ -256,7 +256,7 @@ def main(unused_argv):
                 samples, capacity=128 * config.num_clones)
 
         # Create the global step on the device storing the variables.
-        with tf.device(config.variables_device()):
+        with tf.device('/device:GPU:{}'.format(FLAGS.gpu) if FLAGS.gpu else config.variables_device()):
             global_step = tf.train.get_or_create_global_step()
 
             # Define the model and create clones.
@@ -311,7 +311,7 @@ def main(unused_argv):
             summaries.add(tf.summary.scalar('losses/%s' % loss.op.name, loss))
 
         # Build the optimizer based on the device specification.
-        with tf.device(config.optimizer_device()):
+        with tf.device('/device:GPU:{}'.format(FLAGS.gpu) if FLAGS.gpu else config.optimizer_device()):
             learning_rate = train_utils.get_model_learning_rate(
                 FLAGS.learning_policy, FLAGS.base_learning_rate,
                 FLAGS.learning_rate_decay_step, FLAGS.learning_rate_decay_factor,
@@ -325,7 +325,7 @@ def main(unused_argv):
         for variable in slim.get_model_variables():
             summaries.add(tf.summary.histogram(variable.op.name, variable))
 
-        with tf.device(config.variables_device()):
+        with tf.device('/device:GPU:{}'.format(FLAGS.gpu) if FLAGS.gpu else config.variables_device()):
             total_loss, grads_and_vars = model_deploy.optimize_clones(
                 clones, optimizer)
             total_loss = tf.check_numerics(total_loss, 'Loss is inf or nan.')

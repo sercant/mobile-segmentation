@@ -39,7 +39,7 @@ flags.DEFINE_integer('num_ps_tasks', 0,
                      'The number of parameter servers. If the value is 0, then '
                      'the parameters are handled locally by the worker.')
 
-flags.DEFINE_string('master', 'deeplabv3p', 'BNS name of the tensorflow server')
+flags.DEFINE_string('master', '', 'BNS name of the tensorflow server')
 
 flags.DEFINE_integer('task', 0, 'The task ID.')
 

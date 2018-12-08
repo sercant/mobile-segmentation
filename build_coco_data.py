@@ -73,6 +73,9 @@ def _convert_dataset(dataset_split, dataset_dir, cat_nms=['apple', 'book', 'keyb
         images = groundtruth_data['images']
 
         cat_ids = getCatIds(groundtruth_data, catNms=cat_nms)
+        class_ids = {}
+        for i, cat_id in enumerate(cat_ids):
+            class_ids[cat_id] = i + 1
 
         annotations_index = {}
         if 'annotations' in groundtruth_data:
@@ -138,7 +141,7 @@ def _convert_dataset(dataset_split, dataset_dir, cat_nms=['apple', 'book', 'keyb
                     binary_mask = mask.decode(run_len_encoding)
                     if not an['iscrowd']:
                         binary_mask = np.amax(binary_mask, axis=2)
-                    segmented[binary_mask == 1] = an['category_id']
+                    segmented[binary_mask == 1] = class_ids[an['category_id']]
                 seg_img = PIL.Image.fromarray(binary_mask)
                 output_io = io.BytesIO()
                 seg_img.save(output_io, format='PNG')

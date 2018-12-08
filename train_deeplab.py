@@ -39,7 +39,7 @@ flags.DEFINE_integer('num_ps_tasks', 0,
                      'The number of parameter servers. If the value is 0, then '
                      'the parameters are handled locally by the worker.')
 
-flags.DEFINE_string('master', '', 'BNS name of the tensorflow server')
+flags.DEFINE_string('master', 'deeplabv3p', 'BNS name of the tensorflow server')
 
 flags.DEFINE_integer('task', 0, 'The task ID.')
 
@@ -48,13 +48,13 @@ flags.DEFINE_integer('task', 0, 'The task ID.')
 flags.DEFINE_string('train_logdir', 'logs',
                     'Where the checkpoint and logs are stored.')
 
-flags.DEFINE_integer('log_steps', 100,
+flags.DEFINE_integer('log_steps', 10,
                      'Display logging information at every log_steps.')
 
-flags.DEFINE_integer('save_interval_secs', 60,
+flags.DEFINE_integer('save_interval_secs', 120,
                      'How often, in seconds, we save the model to disk.')
 
-flags.DEFINE_integer('save_summaries_secs', 30,
+flags.DEFINE_integer('save_summaries_secs', 60,
                      'How often, in seconds, we compute the summaries.')
 
 flags.DEFINE_boolean('save_summaries_images', False,
@@ -88,7 +88,7 @@ flags.DEFINE_float('momentum', 0.9, 'The momentum value to use')
 # When fine_tune_batch_norm=True, use at least batch size larger than 12
 # (batch size more than 16 is better). Otherwise, one could use smaller batch
 # size and set fine_tune_batch_norm=False.
-flags.DEFINE_integer('train_batch_size', 16,
+flags.DEFINE_integer('train_batch_size', 20,
                      'The number of images in each batch during training.')
 
 # For weight_decay, use 0.00004 for MobileNet-V2 or Xcpetion model variants.
@@ -144,7 +144,7 @@ flags.DEFINE_float('scale_factor_step_size', 0.25,
 flags.DEFINE_multi_integer('atrous_rates', None,
                            'Atrous rates for atrous spatial pyramid pooling.')
 
-flags.DEFINE_integer('output_stride', 16,
+flags.DEFINE_integer('output_stride', 8,
                      'The ratio of input to output spatial resolution.')
 
 # Dataset settings.

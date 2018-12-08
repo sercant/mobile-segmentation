@@ -238,7 +238,7 @@ def main(unused_argv):
     tf.logging.info('Training on %s set', FLAGS.train_split)
 
     with tf.Graph().as_default() as graph:
-        with tf.device('/device:GPU:{}'.format(FLAGS.gpu) if FLAGS.gpu else config.inputs_device()):
+        with tf.device('/device:GPU:1'):
             # with tf.device('/device:GPU:{}'.format(FLAGS.gpu) if FLAGS.gpu else config.inputs_device()):
             samples = input_generator.get(
                 dataset,

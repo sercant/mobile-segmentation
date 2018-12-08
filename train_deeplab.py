@@ -1,20 +1,17 @@
-
+import tensorflow as tf
+import six
 import sys
 import os
 
 sys.path.append(os.getcwd() + '/tf_models/research/slim')
 sys.path.append(os.getcwd() + '/tf_models/research')
 
-import six
-import tensorflow as tf
-
-from deployment import model_deploy
-from deeplab.utils import train_utils
-from deeplab.utils import input_generator
-from deeplab_overrides.datasets import segmentation_dataset
-from deeplab import model
 from deeplab import common
-
+from deeplab import model
+from deeplab_overrides.datasets import segmentation_dataset
+from deeplab.utils import input_generator
+from deeplab.utils import train_utils
+from deployment import model_deploy
 
 slim = tf.contrib.slim
 
@@ -25,6 +22,8 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 # Settings for multi-GPUs/multi-replicas training.
+
+flags.DEFINE_integer('gpu', None, 'Which GPU to run on.')
 
 flags.DEFINE_integer('num_clones', 1, 'Number of clones to deploy.')
 
@@ -239,7 +238,7 @@ def main(unused_argv):
     tf.logging.info('Training on %s set', FLAGS.train_split)
 
     with tf.Graph().as_default() as graph:
-        with tf.device(config.inputs_device()):
+        with tf.device('/device:GPU:{}'.format(FLAGS.gpu) if FLAGS.gpu else config.inputs_device()):
             samples = input_generator.get(
                 dataset,
                 FLAGS.train_crop_size,

@@ -78,7 +78,7 @@ _COCO_INFORMATION = DatasetDescriptor(
         'train': 8268,  # num of samples in images/training
         'val': 383,  # num of samples in images/validation
     },
-    num_classes=3,
+    num_classes=4,
     ignore_label=0,
 )
 

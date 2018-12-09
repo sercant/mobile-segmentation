@@ -128,7 +128,12 @@ def _convert_dataset(dataset_split, dataset_dir, cat_nms=['apple', 'book', 'keyb
                 img = images[i]
                 image_filename = os.path.join(
                     dataset_dir + '/{}2017'.format(dataset_split), img['file_name'])
-                image_data = tf.gfile.GFile(image_filename, 'rb').read()
+
+                # image_data = tf.gfile.GFile(image_filename, 'rb').read()
+                image_p = PIL.Image.open(image_filename)
+                output_io_img = io.BytesIO()
+                image_p.save(output_io_img, format='JPEG')
+                image_data = output_io_img.getvalue()
                 height, width = image_reader.read_image_dims(image_data)
 
                 # Read the semantic segmentation annotation.
@@ -142,10 +147,13 @@ def _convert_dataset(dataset_split, dataset_dir, cat_nms=['apple', 'book', 'keyb
                     if not an['iscrowd']:
                         binary_mask = np.amax(binary_mask, axis=2)
                     segmented[binary_mask == 1] = class_ids[an['category_id']]
-                seg_img = PIL.Image.fromarray(binary_mask)
+                seg_img = PIL.Image.fromarray(segmented, mode='L')
                 output_io = io.BytesIO()
                 seg_img.save(output_io, format='PNG')
                 seg_data = output_io.getvalue()
+                seg_height, seg_width = label_reader.read_image_dims(seg_data)
+
+                assert height == seg_height and width == seg_width
 
                 example = build_data.image_seg_to_tfexample(
                     image_data, image_filename, height, width, seg_data)

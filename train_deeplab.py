@@ -1,19 +1,22 @@
 
 import sys
 import os
-
-sys.path.append(os.getcwd() + '/tf_models/research/slim')
-sys.path.append(os.getcwd() + '/tf_models/research')
-
 import six
 import tensorflow as tf
 
-from deployment import model_deploy
-from deeplab.utils import train_utils
-from deeplab.utils import input_generator
-from deeplab_overrides.datasets import segmentation_dataset
-from deeplab import model
-from deeplab import common
+sys.path.append(os.getcwd() + '/tf_models/research')
+sys.path.append(os.getcwd() + '/tf_models/research/slim')
+try:
+    from deeplab.utils import input_generator
+    from deeplab import model
+    from deeplab import common
+    from deployment import model_deploy
+
+    from deeplab_overrides.utils import train_utils
+    from deeplab_overrides.datasets import segmentation_dataset
+except:
+    print('There is a problem with the path.')
+    raise
 
 
 slim = tf.contrib.slim
@@ -208,7 +211,7 @@ def _build_deeplab(inputs_queue, outputs_to_num_classes, ignore_label):
             samples[common.LABEL],
             num_classes,
             ignore_label,
-            loss_weight=1.0,
+            loss_weights=[1.0, 8.0, 4.0, 6.0],
             upsample_logits=FLAGS.upsample_logits,
             scope=output)
 

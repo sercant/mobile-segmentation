@@ -56,12 +56,11 @@ def add_softmax_cross_entropy_loss_for_each_scale(scales_to_logits,
                 align_corners=True)
 
         scaled_labels = tf.reshape(scaled_labels, shape=[-1])
-        not_ignore_mask = tf.to_float(
-            tf.equal(scaled_labels, ignore_label)) * 0.0
+        masks = []
+        masks.append(tf.to_float(tf.equal(scaled_labels, ignore_label)) * 0.0)
         for i in range(num_classes):
-            not_ignore_mask = not_ignore_mask + \
-                tf.to_float(tf.equal(scaled_labels, i)) * loss_weights[i]
-
+            masks.append(tf.to_float(tf.equal(scaled_labels, i)) * loss_weights[i])
+        not_ignore_mask = sum(masks)
         # not_ignore_mask = tf.to_float(tf.not_equal(scaled_labels,
         #                                            ignore_label)) * loss_weight
         one_hot_labels = slim.one_hot_encoding(

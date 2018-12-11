@@ -18,7 +18,6 @@ except:
     print('There is a problem with the path.')
     raise
 
-
 slim = tf.contrib.slim
 
 prefetch_queue = slim.prefetch_queue
@@ -60,7 +59,7 @@ flags.DEFINE_integer('save_interval_secs', 120,
 flags.DEFINE_integer('save_summaries_secs', 60,
                      'How often, in seconds, we compute the summaries.')
 
-flags.DEFINE_boolean('save_summaries_images', False,
+flags.DEFINE_boolean('save_summaries_images', True,
                      'Save sample inputs, labels, and semantic predictions as '
                      'images to summary.')
 
@@ -91,7 +90,7 @@ flags.DEFINE_float('momentum', 0.9, 'The momentum value to use')
 # When fine_tune_batch_norm=True, use at least batch size larger than 12
 # (batch size more than 16 is better). Otherwise, one could use smaller batch
 # size and set fine_tune_batch_norm=False.
-flags.DEFINE_integer('train_batch_size', 16,
+flags.DEFINE_integer('train_batch_size', 24,
                      'The number of images in each batch during training.')
 
 # For weight_decay, use 0.00004 for MobileNet-V2 or Xcpetion model variants.
@@ -118,7 +117,7 @@ flags.DEFINE_string('tf_initial_checkpoint', './dist/deeplabv3_ckpt/model.ckpt-3
 flags.DEFINE_boolean('initialize_last_layer', False,
                      'Initialize the last layer.')
 
-flags.DEFINE_boolean('last_layers_contain_logits_only', False,
+flags.DEFINE_boolean('last_layers_contain_logits_only', True,
                      'Only consider logits as last layers or not.')
 
 flags.DEFINE_integer('slow_start_step', 0,
@@ -129,13 +128,13 @@ flags.DEFINE_float('slow_start_learning_rate', 1e-4,
 
 # Set to True if one wants to fine-tune the batch norm parameters in DeepLabv3.
 # Set to False and use small batch size to save GPU memory.
-flags.DEFINE_boolean('fine_tune_batch_norm', True,
+flags.DEFINE_boolean('fine_tune_batch_norm', False,
                      'Fine tune the batch norm parameters or not.')
 
-flags.DEFINE_float('min_scale_factor', 0.5,
+flags.DEFINE_float('min_scale_factor', 1.,
                    'Mininum scale factor for data augmentation.')
 
-flags.DEFINE_float('max_scale_factor', 2.,
+flags.DEFINE_float('max_scale_factor', 1.,
                    'Maximum scale factor for data augmentation.')
 
 flags.DEFINE_float('scale_factor_step_size', 0.25,
@@ -206,12 +205,20 @@ def _build_deeplab(inputs_queue, outputs_to_num_classes, ignore_label):
         name=common.OUTPUT_TYPE)
 
     for output, num_classes in six.iteritems(outputs_to_num_classes):
+        loss_weights = [1., 8., 8., 8.]
+        class_name_to_label = {
+            'backgroud': 0,
+            'apple': 1,
+            'keyboard': 2,
+            'book': 3,
+        }
+
         train_utils.add_softmax_cross_entropy_loss_for_each_scale(
             outputs_to_scales_to_logits[output],
             samples[common.LABEL],
             num_classes,
             ignore_label,
-            loss_weights=[1.0, 8.0, 4.0, 6.0],
+            loss_weights=loss_weights,
             upsample_logits=FLAGS.upsample_logits,
             scope=output)
 
@@ -247,7 +254,7 @@ def main(unused_argv):
                 dataset,
                 FLAGS.train_crop_size,
                 clone_batch_size,
-                min_resize_value=FLAGS.min_resize_value,
+                min_resize_value=FLAGS.min_resize_value if FLAGS.min_resize_value else 224,
                 max_resize_value=FLAGS.max_resize_value,
                 resize_factor=FLAGS.resize_factor,
                 min_scale_factor=FLAGS.min_scale_factor,

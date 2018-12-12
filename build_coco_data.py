@@ -3,19 +3,20 @@ import json
 import os
 import sys
 import math
-
 import numpy as np
 import PIL.Image
-
 from pycocotools import mask
 import tensorflow as tf
 
+sys.path.append(os.getcwd() + '/tf_models/research')
 sys.path.append(os.getcwd() + '/tf_models/research/deeplab/')
 sys.path.append(os.getcwd() + '/tf_models/research/deeplab/datasets')
-sys.path.append(os.getcwd() + '/tf_models/research')
 sys.path.append(os.getcwd() + '/tf_models/research/slim')
-
-import build_data
+try:
+    import build_data
+except:
+    print('Can\'t import deeplab libraries!')
+    raise
 
 flags = tf.app.flags
 tf.flags.DEFINE_string('dataset_dir', './data/coco',
@@ -42,15 +43,15 @@ def getCatIds(annotations, catNms=[], supNms=[], catIds=[]):
     # supNms = supNms if _isArrayLike(supNms) else [supNms]
     # catIds = catIds if _isArrayLike(catIds) else [catIds]
 
-    if len(catNms) == len(supNms) == len(catIds) == 0:
+    if not catNms and not supNms and not catIds:
         cats = annotations['categories']
     else:
         cats = annotations['categories']
-        cats = cats if len(catNms) == 0 else [
+        cats = cats if not catNms else [
             cat for cat in cats if cat['name'] in catNms]
-        cats = cats if len(supNms) == 0 else [
+        cats = cats if not supNms else [
             cat for cat in cats if cat['supercategory'] in supNms]
-        cats = cats if len(catIds) == 0 else [
+        cats = cats if not catIds else [
             cat for cat in cats if cat['id'] in catIds]
     ids = [cat['id'] for cat in cats]
     return ids

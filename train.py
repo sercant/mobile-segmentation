@@ -15,7 +15,7 @@ try:
     from deeplab_overrides.utils import train_utils
     from deeplab_overrides.datasets import segmentation_dataset
 except:
-    print('There is a problem with the path.')
+    print('Can\'t import deeplab libraries!')
     raise
 
 slim = tf.contrib.slim

@@ -11,7 +11,7 @@ try:
     # from deeplab_overrides.datasets import segmentation_dataset
     # from deeplab.utils import input_generator
 except:
-    print('Couldn\'t import deeplab model!')
+    print('Can\'t import deeplab libraries!')
     raise
 
 

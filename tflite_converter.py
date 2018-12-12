@@ -48,7 +48,7 @@ if __name__ == '__main__':
 
             sess.run(tf.global_variables_initializer())
             saver = tf.train.Saver()
-            saver.restore(sess, "./logs/model.ckpt-60000")
+            saver.restore(sess, tf.train.latest_checkpoint('./logs'))
 
             constant_graph = tf.graph_util.convert_variables_to_constants(
                 sess,  # The session is used to retrieve the weights

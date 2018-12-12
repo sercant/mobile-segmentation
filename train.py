@@ -205,7 +205,7 @@ def _build_deeplab(inputs_queue, outputs_to_num_classes, ignore_label):
         name=common.OUTPUT_TYPE)
 
     for output, num_classes in six.iteritems(outputs_to_num_classes):
-        loss_weights = [1., 8., 8., 8.]
+        loss_weights = [1., 3., 3., 3.]
         class_name_to_label = {
             'backgroud': 0,
             'apple': 1,

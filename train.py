@@ -47,7 +47,7 @@ flags.DEFINE_integer('task', 0, 'The task ID.')
 
 # Settings for logging.
 
-flags.DEFINE_string('train_logdir', 'logs',
+flags.DEFINE_string('train_logdir', './logs',
                     'Where the checkpoint and logs are stored.')
 
 flags.DEFINE_integer('log_steps', 10,
@@ -76,13 +76,13 @@ flags.DEFINE_float('base_learning_rate', .0001,
 flags.DEFINE_float('learning_rate_decay_factor', 0.1,
                    'The rate to decay the base learning rate.')
 
-flags.DEFINE_integer('learning_rate_decay_step', 1000,
+flags.DEFINE_integer('learning_rate_decay_step', 4000,
                      'Decay the base learning rate at a fixed step.')
 
 flags.DEFINE_float('learning_power', 0.9,
                    'The power value used in the poly learning policy.')
 
-flags.DEFINE_integer('training_number_of_steps', 30000,
+flags.DEFINE_integer('training_number_of_steps', 60000,
                      'The number of steps used for training')
 
 flags.DEFINE_float('momentum', 0.9, 'The momentum value to use')
@@ -90,7 +90,7 @@ flags.DEFINE_float('momentum', 0.9, 'The momentum value to use')
 # When fine_tune_batch_norm=True, use at least batch size larger than 12
 # (batch size more than 16 is better). Otherwise, one could use smaller batch
 # size and set fine_tune_batch_norm=False.
-flags.DEFINE_integer('train_batch_size', 24,
+flags.DEFINE_integer('train_batch_size', 8,
                      'The number of images in each batch during training.')
 
 # For weight_decay, use 0.00004 for MobileNet-V2 or Xcpetion model variants.
@@ -98,7 +98,7 @@ flags.DEFINE_integer('train_batch_size', 24,
 flags.DEFINE_float('weight_decay', 0.00004,
                    'The value of the weight decay for training.')
 
-flags.DEFINE_multi_integer('train_crop_size', [224, 224],
+flags.DEFINE_multi_integer('train_crop_size', [513, 513],
                            'Image crop size [height, width] during training.')
 
 flags.DEFINE_float('last_layer_gradient_multiplier', 1.0,
@@ -117,7 +117,7 @@ flags.DEFINE_string('tf_initial_checkpoint', './dist/deeplabv3_ckpt/model.ckpt-3
 flags.DEFINE_boolean('initialize_last_layer', False,
                      'Initialize the last layer.')
 
-flags.DEFINE_boolean('last_layers_contain_logits_only', True,
+flags.DEFINE_boolean('last_layers_contain_logits_only', False,
                      'Only consider logits as last layers or not.')
 
 flags.DEFINE_integer('slow_start_step', 0,
@@ -128,13 +128,13 @@ flags.DEFINE_float('slow_start_learning_rate', 1e-4,
 
 # Set to True if one wants to fine-tune the batch norm parameters in DeepLabv3.
 # Set to False and use small batch size to save GPU memory.
-flags.DEFINE_boolean('fine_tune_batch_norm', False,
+flags.DEFINE_boolean('fine_tune_batch_norm', True,
                      'Fine tune the batch norm parameters or not.')
 
-flags.DEFINE_float('min_scale_factor', 1.,
+flags.DEFINE_float('min_scale_factor', 0.5,
                    'Mininum scale factor for data augmentation.')
 
-flags.DEFINE_float('max_scale_factor', 1.,
+flags.DEFINE_float('max_scale_factor', 2.,
                    'Maximum scale factor for data augmentation.')
 
 flags.DEFINE_float('scale_factor_step_size', 0.25,
@@ -146,7 +146,7 @@ flags.DEFINE_float('scale_factor_step_size', 0.25,
 flags.DEFINE_multi_integer('atrous_rates', None,
                            'Atrous rates for atrous spatial pyramid pooling.')
 
-flags.DEFINE_integer('output_stride', 8,
+flags.DEFINE_integer('output_stride', 16,
                      'The ratio of input to output spatial resolution.')
 
 # Dataset settings.
@@ -205,7 +205,7 @@ def _build_deeplab(inputs_queue, outputs_to_num_classes, ignore_label):
         name=common.OUTPUT_TYPE)
 
     for output, num_classes in six.iteritems(outputs_to_num_classes):
-        loss_weights = [1., 3., 3., 3.]
+        loss_weights = [1., 1., 1., 1.]
         class_name_to_label = {
             'background': 0,
             'apple': 1,
@@ -254,7 +254,7 @@ def main(unused_argv):
                 dataset,
                 FLAGS.train_crop_size,
                 clone_batch_size,
-                min_resize_value=FLAGS.min_resize_value if FLAGS.min_resize_value else 224,
+                min_resize_value=FLAGS.min_resize_value,
                 max_resize_value=FLAGS.max_resize_value,
                 resize_factor=FLAGS.resize_factor,
                 min_scale_factor=FLAGS.min_scale_factor,

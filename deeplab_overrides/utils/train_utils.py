@@ -121,9 +121,9 @@ def add_softmax_cross_entropy_loss_for_each_scale(scales_to_logits,
             weights=not_ignore_mask,
             scope=loss_scope)
 
-        from tensorflow.python.ops.losses import util
-        util.add_loss(1.0 - dice_coe(flattened_output,
-                                     one_hot_labels, axis=[1]))
+        # from tensorflow.python.ops.losses import util
+        # util.add_loss(1.0 - dice_coe(flattened_output,
+        #                              one_hot_labels, axis=[1]))
 
 
 get_model_init_fn = _super.get_model_init_fn

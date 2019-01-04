@@ -7,8 +7,38 @@ from deeplab.utils import train_utils as _super
 
 slim = _super.slim
 
+def pixel_wise_softmax(x, name='pixel_wise_softmax'):
+    """Return the softmax outputs of images, every pixels have multiple label, the sum of a pixel is 1.
+    Usually be used for image segmentation.
 
-def dice_coe(output, target, loss_type='jaccard', axis=(1, 2, 3), smooth=1e-5):
+    Parameters
+    ----------
+    x : Tensor
+        input.
+            - For 2d image, 4D tensor (batch_size, height, weight, channel), where channel >= 2.
+            - For 3d image, 5D tensor (batch_size, depth, height, weight, channel), where channel >= 2.
+    name : str
+        function name (optional)
+
+    Returns
+    -------
+    Tensor
+        A ``Tensor`` in the same type as ``x``.
+
+    Examples
+    --------
+    >>> outputs = pixel_wise_softmax(network.outputs)
+    >>> dice_loss = 1 - dice_coe(outputs, y_, epsilon=1e-5)
+
+    References
+    ----------
+    - `tf.reverse <https://www.tensorflow.org/versions/master/api_docs/python/array_ops.html#reverse>`__
+
+    """
+    with tf.name_scope(name):
+        return tf.nn.softmax(x)
+
+def dice_coe(output, target, loss_type='jaccard', axis=1, smooth=1e-5):
     """Soft dice (Sørensen or Jaccard) coefficient for comparing the similarity
     of two batch of data, usually be used for binary image segmentation
     i.e. labels are binary. The coefficient between 0 to 1, 1 means totally match.
@@ -38,13 +68,13 @@ def dice_coe(output, target, loss_type='jaccard', axis=(1, 2, 3), smooth=1e-5):
     - `Wiki-Dice <https://en.wikipedia.org/wiki/Sørensen–Dice_coefficient>`__
 
     """
-    inse = tf.reduce_sum(output * target, axis=axis)
+    inse = tf.reduce_sum(output * target)
     if loss_type == 'jaccard':
-        l = tf.reduce_sum(output * output, axis=axis)
-        r = tf.reduce_sum(target * target, axis=axis)
+        l = tf.reduce_sum(output * output)
+        r = tf.reduce_sum(target * target)
     elif loss_type == 'sorensen':
-        l = tf.reduce_sum(output, axis=axis)
-        r = tf.reduce_sum(target, axis=axis)
+        l = tf.reduce_sum(output)
+        r = tf.reduce_sum(target)
     else:
         raise Exception("Unknow loss_type")
     # old axis=[0,1,2,3]
@@ -63,7 +93,8 @@ def add_softmax_cross_entropy_loss_for_each_scale(scales_to_logits,
                                                   ignore_label,
                                                   loss_weights,
                                                   upsample_logits=True,
-                                                  scope=None):
+                                                  scope=None,
+                                                  add_jaccard_coef=False):
     """Adds softmax cross entropy loss for logits of each scale.
 
     Args:
@@ -121,9 +152,10 @@ def add_softmax_cross_entropy_loss_for_each_scale(scales_to_logits,
             weights=not_ignore_mask,
             scope=loss_scope)
 
-        # from tensorflow.python.ops.losses import util
-        # util.add_loss(1.0 - dice_coe(flattened_output,
-        #                              one_hot_labels, axis=[1]))
+        if add_jaccard_coef:
+            from tensorflow.python.ops.losses import util
+            util.add_loss(1.0 - dice_coe(tf.reshape(pixel_wise_softmax(logits), shape=[-1]),
+                                        tf.reshape(one_hot_labels, shape=[-1])))
 
 
 get_model_init_fn = _super.get_model_init_fn

@@ -220,7 +220,8 @@ def _build_deeplab(inputs_queue, outputs_to_num_classes, ignore_label):
             ignore_label,
             loss_weights=loss_weights,
             upsample_logits=FLAGS.upsample_logits,
-            scope=output)
+            scope=output,
+            add_jaccard_coef=True)
 
     return outputs_to_scales_to_logits
 

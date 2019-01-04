@@ -5,93 +5,15 @@ import tensorflow as tf
 from deeplab.core import preprocess_utils
 from deeplab.utils import train_utils as _super
 
+from metrics import dice_coefficient
+
 slim = _super.slim
-
-def pixel_wise_softmax(x, name='pixel_wise_softmax'):
-    """Return the softmax outputs of images, every pixels have multiple label, the sum of a pixel is 1.
-    Usually be used for image segmentation.
-
-    Parameters
-    ----------
-    x : Tensor
-        input.
-            - For 2d image, 4D tensor (batch_size, height, weight, channel), where channel >= 2.
-            - For 3d image, 5D tensor (batch_size, depth, height, weight, channel), where channel >= 2.
-    name : str
-        function name (optional)
-
-    Returns
-    -------
-    Tensor
-        A ``Tensor`` in the same type as ``x``.
-
-    Examples
-    --------
-    >>> outputs = pixel_wise_softmax(network.outputs)
-    >>> dice_loss = 1 - dice_coe(outputs, y_, epsilon=1e-5)
-
-    References
-    ----------
-    - `tf.reverse <https://www.tensorflow.org/versions/master/api_docs/python/array_ops.html#reverse>`__
-
-    """
-    with tf.name_scope(name):
-        return tf.nn.softmax(x)
-
-def dice_coe(output, target, loss_type='jaccard', axis=1, smooth=1e-5):
-    """Soft dice (Sørensen or Jaccard) coefficient for comparing the similarity
-    of two batch of data, usually be used for binary image segmentation
-    i.e. labels are binary. The coefficient between 0 to 1, 1 means totally match.
-
-    Parameters
-    -----------
-    output : Tensor
-        A distribution with shape: [batch_size, ....], (any dimensions).
-    target : Tensor
-        The target distribution, format the same with `output`.
-    loss_type : str
-        ``jaccard`` or ``sorensen``, default is ``jaccard``.
-    axis : tuple of int
-        All dimensions are reduced, default ``[1,2,3]``.
-    smooth : float
-        This small value will be added to the numerator and denominator.
-            - If both output and target are empty, it makes sure dice is 1.
-            - If either output or target are empty (all pixels are background), dice = ```smooth/(small_value + smooth)``, then if smooth is very small, dice close to 0 (even the image values lower than the threshold), so in this case, higher smooth can have a higher dice.
-
-    Examples
-    ---------
-    >>> outputs = tl.act.pixel_wise_softmax(network.outputs)
-    >>> dice_loss = 1 - tl.cost.dice_coe(outputs, y_)
-
-    References
-    -----------
-    - `Wiki-Dice <https://en.wikipedia.org/wiki/Sørensen–Dice_coefficient>`__
-
-    """
-    inse = tf.reduce_sum(output * target)
-    if loss_type == 'jaccard':
-        l = tf.reduce_sum(output * output)
-        r = tf.reduce_sum(target * target)
-    elif loss_type == 'sorensen':
-        l = tf.reduce_sum(output)
-        r = tf.reduce_sum(target)
-    else:
-        raise Exception("Unknow loss_type")
-    # old axis=[0,1,2,3]
-    # dice = 2 * (inse) / (l + r)
-    # epsilon = 1e-5
-    # dice = tf.clip_by_value(dice, 0, 1.0-epsilon) # if all empty, dice = 1
-    # new haodong
-    dice = (2. * inse + smooth) / (l + r + smooth)
-    ##
-    dice = tf.reduce_mean(dice, name='dice_coe')
-    return dice
 
 def add_softmax_cross_entropy_loss_for_each_scale(scales_to_logits,
                                                   labels,
                                                   num_classes,
                                                   ignore_label,
-                                                  loss_weights,
+                                                  loss_weights=None,
                                                   upsample_logits=True,
                                                   scope=None,
                                                   add_jaccard_coef=False):
@@ -139,7 +61,8 @@ def add_softmax_cross_entropy_loss_for_each_scale(scales_to_logits,
         masks = []
         masks.append(tf.to_float(tf.equal(scaled_labels, ignore_label)) * 0.0)
         for i in range(num_classes):
-            masks.append(tf.to_float(tf.equal(scaled_labels, i)) * loss_weights[i])
+            masks.append(tf.to_float(tf.equal(scaled_labels, i))
+                         * loss_weights[i])
         not_ignore_mask = sum(masks)
         # not_ignore_mask = tf.to_float(tf.not_equal(scaled_labels,
         #                                            ignore_label)) * loss_weight
@@ -153,13 +76,13 @@ def add_softmax_cross_entropy_loss_for_each_scale(scales_to_logits,
             scope=loss_scope)
 
         if add_jaccard_coef:
-            from tensorflow.python.ops.losses import util
-            util.add_loss(1.0 - dice_coe(tf.reshape(pixel_wise_softmax(logits), shape=[-1]),
-                                        tf.reshape(one_hot_labels, shape=[-1])))
+            with tf.name_scope('pixel_wise_softmax'):
+                softmax_logits = tf.nn.softmax(logits)
+            tf.losses.add_loss(1.0 - dice_coefficient(softmax_logits, one_hot_labels))
 
 
-get_model_init_fn = _super.get_model_init_fn
+get_model_init_fn=_super.get_model_init_fn
 
-get_model_gradient_multipliers = _super.get_model_gradient_multipliers
+get_model_gradient_multipliers=_super.get_model_gradient_multipliers
 
-get_model_learning_rate = _super.get_model_learning_rate
+get_model_learning_rate=_super.get_model_learning_rate

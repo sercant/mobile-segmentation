@@ -9,6 +9,7 @@ from metrics import dice_coefficient
 
 slim = _super.slim
 
+
 def add_softmax_cross_entropy_loss_for_each_scale(scales_to_logits,
                                                   labels,
                                                   num_classes,
@@ -68,21 +69,27 @@ def add_softmax_cross_entropy_loss_for_each_scale(scales_to_logits,
         #                                            ignore_label)) * loss_weight
         one_hot_labels = slim.one_hot_encoding(
             scaled_labels, num_classes, on_value=1.0, off_value=0.0)
-        flattened_output = tf.reshape(logits, shape=[-1, num_classes])
-        tf.losses.softmax_cross_entropy(
-            one_hot_labels,
-            flattened_output,
-            weights=not_ignore_mask,
-            scope=loss_scope)
+
+        with tf.name_scope('pixel_wise_softmax'):
+            softmax_logits = tf.nn.softmax(logits)
+
+        flattened_output = tf.reshape(softmax_logits, shape=[-1, num_classes])
+
+        tf.losses.add_loss(tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
+            labels=one_hot_labels, logits=flattened_output), axis=-1))
+        # tf.losses.softmax_cross_entropy(
+        #     one_hot_labels,
+        #     flattened_output,
+        #     weights=not_ignore_mask,
+        #     scope=loss_scope)
 
         if add_jaccard_coef:
-            with tf.name_scope('pixel_wise_softmax'):
-                softmax_logits = tf.nn.softmax(logits)
-            tf.losses.add_loss(1.0 - dice_coefficient(softmax_logits, one_hot_labels))
+            tf.losses.add_loss(
+                1.0 - dice_coefficient(softmax_logits, one_hot_labels))
 
 
-get_model_init_fn=_super.get_model_init_fn
+get_model_init_fn = _super.get_model_init_fn
 
-get_model_gradient_multipliers=_super.get_model_gradient_multipliers
+get_model_gradient_multipliers = _super.get_model_gradient_multipliers
 
-get_model_learning_rate=_super.get_model_learning_rate
+get_model_learning_rate = _super.get_model_learning_rate

@@ -47,7 +47,7 @@ flags.DEFINE_integer('task', 0, 'The task ID.')
 
 # Settings for logging.
 
-flags.DEFINE_string('train_logdir', './logs',
+flags.DEFINE_string('train_logdir', None,
                     'Where the checkpoint and logs are stored.')
 
 flags.DEFINE_integer('log_steps', 10,
@@ -82,7 +82,7 @@ flags.DEFINE_integer('learning_rate_decay_step', 2000,
 flags.DEFINE_float('learning_power', 0.9,
                    'The power value used in the poly learning policy.')
 
-flags.DEFINE_integer('training_number_of_steps', 150000,
+flags.DEFINE_integer('training_number_of_steps', 30000,
                      'The number of steps used for training')
 
 flags.DEFINE_float('momentum', 0.9, 'The momentum value to use')
@@ -98,7 +98,7 @@ flags.DEFINE_integer('train_batch_size', 8,
 flags.DEFINE_float('weight_decay', 0.00004,
                    'The value of the weight decay for training.')
 
-flags.DEFINE_multi_integer('train_crop_size', [224, 224],
+flags.DEFINE_multi_integer('train_crop_size', [513, 513],
                            'Image crop size [height, width] during training.')
 
 flags.DEFINE_float('last_layer_gradient_multiplier', 1.0,
@@ -110,11 +110,11 @@ flags.DEFINE_boolean('upsample_logits', True,
 
 # Settings for fine-tuning the network.
 
-flags.DEFINE_string('tf_initial_checkpoint', './dist/deeplabv3_ckpt/model.ckpt-30000',
+flags.DEFINE_string('tf_initial_checkpoint', None,
                     'The initial checkpoint in tensorflow format.')
 
 # Set to False if one does not want to re-use the trained classifier weights.
-flags.DEFINE_boolean('initialize_last_layer', False,
+flags.DEFINE_boolean('initialize_last_layer', True,
                      'Initialize the last layer.')
 
 flags.DEFINE_boolean('last_layers_contain_logits_only', False,
@@ -150,13 +150,13 @@ flags.DEFINE_integer('output_stride', 16,
                      'The ratio of input to output spatial resolution.')
 
 # Dataset settings.
-flags.DEFINE_string('dataset', 'coco',
+flags.DEFINE_string('dataset', 'pascal_voc_seg',
                     'Name of the segmentation dataset.')
 
 flags.DEFINE_string('train_split', 'train',
                     'Which split of the dataset to be used for training')
 
-flags.DEFINE_string('dataset_dir', 'data/records', 'Where the dataset reside.')
+flags.DEFINE_string('dataset_dir', None, 'Where the dataset reside.')
 
 
 def _build_deeplab(inputs_queue, outputs_to_num_classes, ignore_label):

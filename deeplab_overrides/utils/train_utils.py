@@ -78,7 +78,7 @@ def add_softmax_cross_entropy_loss_for_each_scale(scales_to_logits,
         tf.losses.sigmoid_cross_entropy(
             one_hot_labels,
             flattened_output,
-            weights=not_ignore_mask,
+            weights=tf.transpose(tf.concat(0, [not_ignore_mask for i in range(num_classes)]), [1, 0]),
             scope=loss_scope)
 
         if add_jaccard_coef:

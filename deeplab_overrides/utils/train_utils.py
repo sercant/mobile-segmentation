@@ -83,7 +83,9 @@ def add_softmax_cross_entropy_loss_for_each_scale(scales_to_logits,
         #     weights=not_ignore_mask,
         #     scope=loss_scope)
 
-
+        if add_jaccard_coef:
+            tf.losses.add_loss(
+                1.0 - dice_coefficient(softmax_logits, one_hot_labels, smooth=1.))
 
 
 get_model_init_fn = _super.get_model_init_fn

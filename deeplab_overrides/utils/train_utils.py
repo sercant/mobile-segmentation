@@ -76,16 +76,14 @@ def add_softmax_cross_entropy_loss_for_each_scale(scales_to_logits,
         flattened_output = tf.reshape(softmax_logits, shape=[-1, num_classes])
 
         tf.losses.add_loss(tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
-            labels=one_hot_labels, logits=flattened_output), axis=-1))
+            labels=one_hot_labels, logits=flattened_output), axis=-1) + 1.0 - dice_coefficient(softmax_logits, one_hot_labels, smooth=1.)))
         # tf.losses.softmax_cross_entropy(
         #     one_hot_labels,
         #     flattened_output,
         #     weights=not_ignore_mask,
         #     scope=loss_scope)
 
-        if add_jaccard_coef:
-            tf.losses.add_loss(
-                1.0 - dice_coefficient(softmax_logits, one_hot_labels, smooth=1.))
+
 
 
 get_model_init_fn = _super.get_model_init_fn

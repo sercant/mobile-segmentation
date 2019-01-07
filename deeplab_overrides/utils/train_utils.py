@@ -70,25 +70,17 @@ def add_softmax_cross_entropy_loss_for_each_scale(scales_to_logits,
         one_hot_labels = slim.one_hot_encoding(
             scaled_labels, num_classes, on_value=1.0, off_value=0.0)
 
-        with tf.name_scope('pixel_wise_softmax'):
-            softmax_logits = tf.nn.softmax(logits)
+        flattened_output = tf.reshape(logits, shape=[-1, num_classes])
 
-        flattened_output = tf.reshape(softmax_logits, shape=[-1, num_classes])
-
-        not_ignore_mask = tf.expand_dims(not_ignore_mask, axis=1)
-
-        masks_tf = [not_ignore_mask for i in range(num_classes)]
-
-        weights_by_all_classes = tf.concat(
-            axis=1, values=masks_tf)
-
-        tf.losses.sigmoid_cross_entropy(
+        tf.losses.softmax_cross_entropy(
             one_hot_labels,
             flattened_output,
-            weights=weights_by_all_classes,
+            weights=not_ignore_mask,
             scope=loss_scope)
 
         if add_jaccard_coef:
+            with tf.name_scope('pixel_wise_softmax'):
+                softmax_logits = tf.nn.softmax(logits)
             with tf.name_scope(loss_scope):
                 tf.losses.add_loss(
                     1.0 - dice_coefficient(softmax_logits, one_hot_labels, smooth=1.))

@@ -1,22 +1,30 @@
+# Copyright 2018 The TensorFlow Authors All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+"""Training script for the DeepLab model.
 
-import sys
-import os
+See model.py for more details and usage.
+"""
+
 import six
 import tensorflow as tf
-
-sys.path.append(os.getcwd() + '/tf_models/research')
-sys.path.append(os.getcwd() + '/tf_models/research/slim')
-try:
-    from deeplab.utils import input_generator
-    from deeplab import model
-    from deeplab import common
-    from deployment import model_deploy
-
-    from deeplab_overrides.utils import train_utils
-    from deeplab_overrides.datasets import segmentation_dataset
-except:
-    print('Can\'t import deeplab libraries!')
-    raise
+import common
+from dataset import segmentation_dataset
+import model
+from utils import input_generator
+from utils import train_utils
+from deployment import model_deploy
 
 slim = tf.contrib.slim
 
@@ -59,7 +67,7 @@ flags.DEFINE_integer('save_interval_secs', 1200,
 flags.DEFINE_integer('save_summaries_secs', 600,
                      'How often, in seconds, we compute the summaries.')
 
-flags.DEFINE_boolean('save_summaries_images', True,
+flags.DEFINE_boolean('save_summaries_images', False,
                      'Save sample inputs, labels, and semantic predictions as '
                      'images to summary.')
 
@@ -205,23 +213,14 @@ def _build_deeplab(inputs_queue, outputs_to_num_classes, ignore_label):
         name=common.OUTPUT_TYPE)
 
     for output, num_classes in six.iteritems(outputs_to_num_classes):
-        loss_weights = [1., 1., 1., 1.]
-        class_name_to_label = {
-            'background': 0,
-            'apple': 1,
-            'keyboard': 2,
-            'book': 3,
-        }
-
         train_utils.add_softmax_cross_entropy_loss_for_each_scale(
             outputs_to_scales_to_logits[output],
             samples[common.LABEL],
             num_classes,
             ignore_label,
-            loss_weights=loss_weights,
+            loss_weight=1.0,
             upsample_logits=FLAGS.upsample_logits,
-            scope=output,
-            add_jaccard_coef=True)
+            scope=output)
 
     return outputs_to_scales_to_logits
 

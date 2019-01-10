@@ -1,26 +1,13 @@
 
-import sys
-import os
 import tensorflow as tf
-
-sys.path.append(os.getcwd() + '/tf_models/research')
-sys.path.append(os.getcwd() + '/tf_models/research/slim')
-try:
-    from deeplab import common
-    from deeplab import model
-    # from deeplab_overrides.datasets import segmentation_dataset
-    # from deeplab.utils import input_generator
-except:
-    print('Can\'t import deeplab libraries!')
-    raise
-
+import common
+import model
 
 slim = tf.contrib.slim
 
 flags = tf.app.flags
 
 FLAGS = flags.FLAGS
-
 
 if __name__ == '__main__':
     input_tensor_name = 'input_0'
@@ -31,7 +18,7 @@ if __name__ == '__main__':
         outputs_to_num_classes=outputs_to_num_classes,
         crop_size=input_size[1:3],
         atrous_rates=None,
-        output_stride=8)
+        output_stride=16)
 
     g = tf.Graph()
     with g.as_default():
@@ -41,10 +28,9 @@ if __name__ == '__main__':
             outputs_to_scales_to_logits = model.predict_labels(
                 inputs,
                 model_options=model_options)
-            outputs_to_scales_to_logits[common.OUTPUT_TYPE] = tf.to_int32(
+            predictions = tf.to_int32(
                 outputs_to_scales_to_logits[common.OUTPUT_TYPE])
-            output_tensor_name = outputs_to_scales_to_logits[common.OUTPUT_TYPE].name.split(':')[
-                0]
+            output_tensor_name = predictions.name.split(':')[0]
 
             sess.run(tf.global_variables_initializer())
             saver = tf.train.Saver()
@@ -85,8 +71,3 @@ if __name__ == '__main__':
                     x], [y])
                 tflite_model = converter.convert()
                 open("dist/tflite_graph.tflite", "wb").write(tflite_model)
-
-                # Load TFLite model and allocate tensors.
-                # interpreter = tf.contrib.lite.Interpreter(
-                #     model_content=tflite_model)
-                # interpreter.allocate_tensors()

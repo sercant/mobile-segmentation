@@ -1,23 +1,32 @@
-import sys
-import os
+# Copyright 2018 The TensorFlow Authors All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
+"""Segmentation results visualization on a given set of images.
+
+See model.py for more details and usage.
+"""
 import math
 import os.path
 import time
 import numpy as np
 import tensorflow as tf
-
-sys.path.append(os.getcwd() + '/tf_models/research/slim')
-sys.path.append(os.getcwd() + '/tf_models/research')
-try:
-    from deeplab import common
-    from deeplab import model
-    from deeplab_overrides.datasets import segmentation_dataset
-    from deeplab.utils import input_generator
-    from deeplab.utils import save_annotation
-except:
-    print('Can\'t import deeplab libraries!')
-    raise
-
+import common
+import model
+from dataset import segmentation_dataset
+from utils import input_generator
+from utils import save_annotation
 
 slim = tf.contrib.slim
 
@@ -29,11 +38,9 @@ flags.DEFINE_string('master', '', 'BNS name of the tensorflow server')
 
 # Settings for log directories.
 
-flags.DEFINE_string('vis_logdir', './logs/vis',
-                    'Where to write the event logs.')
+flags.DEFINE_string('vis_logdir', None, 'Where to write the event logs.')
 
-flags.DEFINE_string('checkpoint_dir', './logs',
-                    'Directory of model checkpoints.')
+flags.DEFINE_string('checkpoint_dir', None, 'Directory of model checkpoints.')
 
 # Settings for visualizing the model.
 
@@ -52,7 +59,7 @@ flags.DEFINE_integer('eval_interval_secs', 60 * 5,
 flags.DEFINE_multi_integer('atrous_rates', None,
                            'Atrous rates for atrous spatial pyramid pooling.')
 
-flags.DEFINE_integer('output_stride', 8,
+flags.DEFINE_integer('output_stride', 16,
                      'The ratio of input to output spatial resolution.')
 
 # Change to [0.5, 0.75, 1.0, 1.25, 1.5, 1.75] for multi-scale test.
@@ -65,22 +72,21 @@ flags.DEFINE_bool('add_flipped_images', False,
 
 # Dataset settings.
 
-flags.DEFINE_string('dataset', 'coco',
+flags.DEFINE_string('dataset', 'ade20k',
                     'Name of the segmentation dataset.')
 
 flags.DEFINE_string('vis_split', 'val',
                     'Which split of the dataset used for visualizing results')
 
-flags.DEFINE_string('dataset_dir', './data/records',
-                    'Where the dataset reside.')
+flags.DEFINE_string('dataset_dir', None, 'Where the dataset reside.')
 
-flags.DEFINE_enum('colormap_type', 'cityscapes', ['pascal', 'cityscapes'],
+flags.DEFINE_enum('colormap_type', 'pascal', ['pascal', 'cityscapes'],
                   'Visualization colormap type.')
 
-flags.DEFINE_boolean('also_save_raw_predictions', True,
+flags.DEFINE_boolean('also_save_raw_predictions', False,
                      'Also save raw predictions.')
 
-flags.DEFINE_integer('max_number_of_iterations', 1,
+flags.DEFINE_integer('max_number_of_iterations', 0,
                      'Maximum number of visualization iterations. Will loop '
                      'indefinitely upon nonpositive values.')
 
@@ -184,9 +190,9 @@ def main(unused_argv):
     dataset = segmentation_dataset.get_dataset(
         FLAGS.dataset, FLAGS.vis_split, dataset_dir=FLAGS.dataset_dir)
     train_id_to_eval_id = None
-#   if dataset.name == segmentation_dataset.get_cityscapes_dataset_name():
-#     tf.logging.info('Cityscapes requires converting train_id to eval_id.')
-#     train_id_to_eval_id = _CITYSCAPES_TRAIN_ID_TO_EVAL_ID
+    if dataset.name == segmentation_dataset.get_cityscapes_dataset_name():
+        tf.logging.info('Cityscapes requires converting train_id to eval_id.')
+        train_id_to_eval_id = _CITYSCAPES_TRAIN_ID_TO_EVAL_ID
 
     # Prepare for visualization.
     tf.gfile.MakeDirs(FLAGS.vis_logdir)
@@ -198,8 +204,6 @@ def main(unused_argv):
 
     tf.logging.info('Visualizing on %s set', FLAGS.vis_split)
 
-    FLAGS.min_resize_value = 224
-    FLAGS.max_resize_value = 224
     g = tf.Graph()
     with g.as_default():
         samples = input_generator.get(dataset,

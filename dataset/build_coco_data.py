@@ -8,15 +8,7 @@ import PIL.Image
 from pycocotools import mask
 import tensorflow as tf
 
-sys.path.append(os.getcwd() + '/tf_models/research')
-sys.path.append(os.getcwd() + '/tf_models/research/deeplab/')
-sys.path.append(os.getcwd() + '/tf_models/research/deeplab/datasets')
-sys.path.append(os.getcwd() + '/tf_models/research/slim')
-try:
-    import build_data
-except:
-    print('Can\'t import deeplab libraries!')
-    raise
+import build_data
 
 flags = tf.app.flags
 tf.flags.DEFINE_string('dataset_dir', './data/coco',

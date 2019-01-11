@@ -21,7 +21,7 @@ import tensorflow as tf
 # from core import xception
 # from tensorflow.contrib.slim.nets import resnet_utils
 from nets.mobilenet import mobilenet_v2
-
+from core import shufflenet_v2
 
 slim = tf.contrib.slim
 
@@ -71,6 +71,7 @@ def _mobilenet_v2(net,
 # A map from network name to network function.
 networks_map = {
     'mobilenet_v2': _mobilenet_v2,
+    'shufflenet_v2': shufflenet_v2.shufflenet_base,
     # 'resnet_v1_50': resnet_v1_beta.resnet_v1_50,
     # 'resnet_v1_50_beta': resnet_v1_beta.resnet_v1_50_beta,
     # 'resnet_v1_101': resnet_v1_beta.resnet_v1_101,
@@ -83,6 +84,7 @@ networks_map = {
 # A map from network name to network arg scope.
 arg_scopes_map = {
     'mobilenet_v2': mobilenet_v2.training_scope,
+    'shufflenet_v2': mobilenet_v2.training_scope, # TODO fix
     # 'resnet_v1_50': resnet_utils.resnet_arg_scope,
     # 'resnet_v1_50_beta': resnet_utils.resnet_arg_scope,
     # 'resnet_v1_101': resnet_utils.resnet_arg_scope,
@@ -100,6 +102,9 @@ networks_to_feature_maps = {
     'mobilenet_v2': {
         DECODER_END_POINTS: ['layer_4/depthwise_output'],
     },
+    'shufflenet_v2': {
+        DECODER_END_POINTS: ['Conv5/Relu'], # TODO fix
+    }
     # 'resnet_v1_50': {
     #     DECODER_END_POINTS: ['block1/unit_2/bottleneck_v1/conv3'],
     # },
@@ -136,6 +141,7 @@ networks_to_feature_maps = {
 # ImageNet pretrained versions of these models.
 name_scope = {
     'mobilenet_v2': 'MobilenetV2',
+    'shufflenet_v2': 'ShuffleNetV2',
     # 'resnet_v1_50': 'resnet_v1_50',
     # 'resnet_v1_50_beta': 'resnet_v1_50',
     # 'resnet_v1_101': 'resnet_v1_101',
@@ -162,6 +168,7 @@ def _preprocess_zero_mean_unit_range(inputs):
 
 _PREPROCESS_FN = {
     'mobilenet_v2': _preprocess_zero_mean_unit_range,
+    'shufflenet_v2': _preprocess_zero_mean_unit_range,
     # 'resnet_v1_50': _preprocess_subtract_imagenet_mean,
     # 'resnet_v1_50_beta': _preprocess_zero_mean_unit_range,
     # 'resnet_v1_101': _preprocess_subtract_imagenet_mean,
@@ -291,6 +298,20 @@ def extract_features(images,
                 output_stride=output_stride,
                 reuse=reuse,
                 scope=name_scope[model_variant],
+                final_endpoint=final_endpoint)
+    elif 'shufflenet' in model_variant:
+        arg_scope = arg_scopes_map[model_variant](
+            is_training=(is_training and fine_tune_batch_norm),
+            weight_decay=weight_decay)
+        features, end_points = get_network(
+            model_variant, preprocess_images, arg_scope)(
+                inputs=images,
+                depth_multiplier=depth_multiplier,
+                output_stride=output_stride,
+                reuse=reuse,
+                scope=name_scope[model_variant],
+                is_training=(is_training and fine_tune_batch_norm),
+                weight_decay=weight_decay,
                 final_endpoint=final_endpoint)
     else:
         raise ValueError('Unknown model variant %s.' % model_variant)

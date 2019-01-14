@@ -1,5 +1,6 @@
 
 import tensorflow as tf
+import utils.load_env
 import common
 import model
 

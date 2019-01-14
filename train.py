@@ -20,6 +20,8 @@ See model.py for more details and usage.
 import six
 import tensorflow as tf
 import common
+import utils.load_env
+
 from dataset import segmentation_dataset
 import model
 from utils import input_generator

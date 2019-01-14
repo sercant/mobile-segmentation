@@ -22,6 +22,8 @@ import os.path
 import time
 import numpy as np
 import tensorflow as tf
+
+import utils.load_env
 import common
 import model
 from dataset import segmentation_dataset

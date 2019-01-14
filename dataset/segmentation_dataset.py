@@ -110,10 +110,10 @@ _ADE20K_INFORMATION = DatasetDescriptor(
 
 _COCO_INFORMATION = DatasetDescriptor(
     splits_to_sizes={
-        'train': 8268,  # num of samples in images/training
-        'val': 383,  # num of samples in images/validation
+        'train': 117266,  # num of samples in images/training
+        'val': 4952,  # num of samples in images/validation
     },
-    num_classes=4,
+    num_classes=92,
     ignore_label=255,
 )
 

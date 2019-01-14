@@ -117,3 +117,5 @@ dmypy.json
 logs*
 data
 **/*.pyc
+
+checkpoints

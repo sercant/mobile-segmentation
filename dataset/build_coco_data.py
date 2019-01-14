@@ -20,7 +20,7 @@ FLAGS = flags.FLAGS
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
-_NUM_SHARDS = 4
+_NUM_SHARDS = 10
 
 
 def getCatIds(annotations, catNms=[], supNms=[], catIds=[]):
@@ -49,7 +49,7 @@ def getCatIds(annotations, catNms=[], supNms=[], catIds=[]):
     return ids
 
 
-def _convert_dataset(dataset_split, dataset_dir, cat_nms=['apple', 'book', 'keyboard']):
+def _convert_dataset(dataset_split, dataset_dir, cat_nms=None):
     """Converts the ADE20k dataset into into tfrecord format.
 
     Args:

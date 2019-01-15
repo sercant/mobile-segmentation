@@ -373,47 +373,6 @@ def main(unused_argv):
         session_config = tf.ConfigProto(
             allow_soft_placement=True, log_device_placement=False)
 
-        steps_per_epoch = dataset.splits_to_sizes[FLAGS.train_split] / \
-            FLAGS.train_batch_size
-
-        def custom_train_step(sess, train_op, global_step, train_step_kwargs):
-            total_loss, should_stop = slim.learning.train.train_step(
-                sess, train_op, global_step, train_step_kwargs)
-
-            if not global_step.value % steps_per_epoch or should_stop:
-                print('Running eval on epoch {}:'.format(
-                    global_step.value / steps_per_epoch))
-                import sys
-                import subprocess
-                subprocess.call([
-                    'python',
-                    'evaluate.py',
-                    '--model_variant={}'.format(FLAGS.model_variant),
-                    '--resize_factor={}'.format(FLAGS.resize_factor),
-                    '--depth_multiplier={}'.format(FLAGS.depth_multiplier),
-                    '--decoder_output_stride={}'.format(
-                        FLAGS.decoder_output_stride),
-                    '--decoder_use_separable_conv={}'.format(
-                        FLAGS.decoder_use_separable_conv),
-                    '--merge_method={}'.format(FLAGS.merge_method),
-                    '--dense_prediction_cell_json={}'.format(
-                        FLAGS.dense_prediction_cell_json),
-                    '--eval_logdir={}'.format(FLAGS.train_logdir + '/eval'),
-                    '--checkpoint_dir={}'.format(FLAGS.train_logdir),
-                    '--eval_crop_size={}'.format(FLAGS.train_crop_size[0]),
-                    '--eval_crop_size={}'.format(FLAGS.train_crop_size[1]),
-                    '--dataset={}'.format(FLAGS.dataset),
-                    '--dataset_dir={}'.format(FLAGS.dataset_dir),
-                    '--aspp_with_separable_conv={}'.format(
-                        FLAGS.aspp_with_separable_conv),
-                    '--aspp_with_batch_norm={}'.format(
-                        FLAGS.aspp_with_batch_norm),
-                    '--min_resize_value={}'.format(FLAGS.min_resize_value),
-                    '--max_resize_value={}'.format(FLAGS.max_resize_value)],
-                    stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr)
-
-            return total_loss, should_stop
-
         # Start the training.
         slim.learning.train(
             train_tensor,
@@ -424,7 +383,6 @@ def main(unused_argv):
             is_chief=(FLAGS.task == 0),
             session_config=session_config,
             startup_delay_steps=startup_delay_steps,
-            train_step=custom_train_step,
             init_fn=train_utils.get_model_init_fn(
                 FLAGS.train_logdir,
                 FLAGS.tf_initial_checkpoint,

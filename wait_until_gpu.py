@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import subprocess
 
@@ -8,6 +9,8 @@ if __name__ == "__main__":
     while True:
         gpu_stats = GPUStatCollection.new_query()
         available_gpus = []
+
+        gpu_stats.print_formatted(sys.stdout)
         for gpu in gpu_stats.gpus:
             if gpu.memory_free > 9000:
                 available_gpus.append(gpu.index)

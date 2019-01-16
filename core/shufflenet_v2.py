@@ -7,8 +7,8 @@ BATCH_NORM_EPSILON = 1e-3
 
 
 @slim.add_arg_scope
-def batch_norm(net):
-    return tf.layers.batch_normalization(net)
+def batch_norm(net, *args, **kwargs):
+    return tf.layers.batch_normalization(net, *args, **kwargs)
 
 def training_scope(is_training=True,
                    weight_decay=0.00004,

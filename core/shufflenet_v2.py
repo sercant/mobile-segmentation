@@ -6,33 +6,12 @@ BATCH_NORM_MOMENTUM = 0.997
 BATCH_NORM_EPSILON = 1e-3
 
 
-@slim.add_arg_scope
-def batch_norm(net, *args, **kwargs):
-    return tf.layers.batch_normalization(net, *args, **kwargs)
-
 def training_scope(is_training=True,
                    weight_decay=0.00004,
+                   stddev=0.09,
+                   dropout_keep_prob=0.8,
                    bn_decay=0.997):
-    batch_norm_params = {
-        'training': is_training,
-        'momentum': BATCH_NORM_MOMENTUM,
-        'epsilon': BATCH_NORM_EPSILON,
-        'scale': True,
-        'center': True,
-        'axis': 3,
-        'fused': True,
-        'name': 'batch_norm'
-    }
-
-    params = {
-        'padding': 'SAME', 'activation_fn': tf.nn.relu,
-        'normalizer_fn': batch_norm, 'data_format': 'NHWC',
-        'weights_initializer': tf.contrib.layers.xavier_initializer()
-    }
-
-    with slim.arg_scope([batch_norm], **batch_norm_params), \
-            slim.arg_scope([slim.conv2d, separable_conv2d], **params), \
-            slim.arg_scope([slim.conv2d], weights_regularizer=slim.l2_regularizer(weight_decay)) as s:
+    with slim.arg_scope([shufflenet, shufflenet_base], is_training=is_training) as s:
         return s
 
 
@@ -61,34 +40,50 @@ def shufflenet_base(input_tensor,
             current_stride *= layer_stride
             return layer_stride, current_stride
 
+    def batch_norm(net):
+        net = tf.layers.batch_normalization(
+            net, axis=3, center=True, scale=True,
+            training=is_training,
+            momentum=BATCH_NORM_MOMENTUM,
+            epsilon=BATCH_NORM_EPSILON,
+            fused=True, name='batch_norm'
+        )
+        return net
+
     with tf.variable_scope(scope):
-        layer_stride, current_stride = get_stride(2, current_stride)
-        net = slim.conv2d(input_tensor, 24, (3, 3),
-                          stride=layer_stride, scope='Conv1')
-        layer_stride, current_stride = get_stride(2, current_stride)
-        net = slim.max_pool2d(net, (3, 3), stride=layer_stride,
-                              padding='SAME', scope='MaxPool')
-        end_points['Stage1'] = net
+        params = {
+            'padding': 'SAME', 'activation_fn': tf.nn.relu,
+            'normalizer_fn': batch_norm, 'data_format': 'NHWC',
+            'weights_initializer': tf.contrib.layers.xavier_initializer()
+        }
+        with slim.arg_scope([slim.conv2d, depthwise_conv], **params):
+            layer_stride, current_stride = get_stride(2, current_stride)
+            net = slim.conv2d(input_tensor, 24, (3, 3),
+                              stride=layer_stride, scope='Conv1')
+            layer_stride, current_stride = get_stride(2, current_stride)
+            net = slim.max_pool2d(net, (3, 3), stride=layer_stride,
+                                  padding='SAME', scope='MaxPool')
+            end_points['Stage1'] = net
 
-        layers = [
-            {'num_units': 4, 'out_channels': initial_depth,
-                'scope': 'Stage2', 'stride': 2},
-            {'num_units': 8, 'out_channels': None,
-                'scope': 'Stage3', 'stride': 2},
-            {'num_units': 4, 'out_channels': None,
-                'scope': 'Stage4', 'stride': 2},
-        ]
+            layers = [
+                {'num_units': 4, 'out_channels': initial_depth,
+                    'scope': 'Stage2', 'stride': 2},
+                {'num_units': 8, 'out_channels': None,
+                    'scope': 'Stage3', 'stride': 2},
+                {'num_units': 4, 'out_channels': None,
+                    'scope': 'Stage4', 'stride': 2},
+            ]
 
-        for i in range(3):
-            layer = layers[i]
-            layer_stride, current_stride = get_stride(
-                layer['stride'], current_stride)
-            net = block(
-                net,
-                num_units=layer['num_units'],
-                out_channels=layer['out_channels'],
-                scope=layer['scope'],
-                stride=layer_stride)
+            for i in range(3):
+                layer = layers[i]
+                layer_stride, current_stride = get_stride(
+                    layer['stride'], current_stride)
+                net = block(
+                    net,
+                    num_units=layer['num_units'],
+                    out_channels=layer['out_channels'],
+                    scope=layer['scope'],
+                    stride=layer_stride)
 
     return net, end_points
 
@@ -141,6 +136,7 @@ def shufflenet(input_tensor,
 
 def block(x, num_units, out_channels=None, scope='stage', stride=2):
     with tf.variable_scope(scope):
+
         with tf.variable_scope('unit_1'):
             x, y = basic_unit_with_downsampling(x, out_channels, stride=stride)
 
@@ -158,55 +154,53 @@ def concat_shuffle_split(x, y):
         shape = tf.shape(x)
         batch_size = shape[0]
         height, width = shape[1], shape[2]
-        depth = x.shape[3]
+        depth = x.shape[3].value
 
         # shape [batch_size, height, width, 2, depth]
-        z = tf.concat([x, y], axis=3)
-        # to be compatible with tflite
-        z = tf.reshape(z, shape=[batch_size, -1, 2, depth])
-        z = tf.transpose(z, [0, 1, 3, 2])
-        z = tf.reshape(z, [batch_size, height, width, 2 * depth])
+        z = tf.stack([x, y], axis=3)
+        z = tf.transpose(z, [0, 1, 2, 4, 3])
+        z = tf.reshape(z, [batch_size, height, width, 2*depth])
         x, y = tf.split(z, num_or_size_splits=2, axis=3)
         return x, y
 
 
 def basic_unit(x):
-    in_channels = x.shape[3]
+    in_channels = x.shape[3].value
     x = slim.conv2d(x, in_channels, (1, 1), stride=1, scope='conv1x1_before')
-    x = separable_conv2d(x, kernel=3, stride=1,
-                              activation_fn=None, scope='depthwise')
+    x = depthwise_conv(x, kernel=3, stride=1,
+                       activation_fn=None, scope='depthwise')
     x = slim.conv2d(x, in_channels, (1, 1), stride=1, scope='conv1x1_after')
     return x
 
 
 def basic_unit_with_downsampling(x, out_channels=None, stride=2):
-    in_channels = x.shape[3]
+    in_channels = x.shape[3].value
     out_channels = 2 * in_channels if out_channels is None else out_channels
 
     y = slim.conv2d(x, in_channels, (1, 1), stride=1, scope='conv1x1_before')
-    y = separable_conv2d(y, kernel=3, stride=stride,
-                              activation_fn=None, scope='depthwise')
+    y = depthwise_conv(y, kernel=3, stride=stride,
+                       activation_fn=None, scope='depthwise')
     y = slim.conv2d(y, out_channels // 2, (1, 1),
                     stride=1, scope='conv1x1_after')
 
     with tf.variable_scope('second_branch'):
-        x = separable_conv2d(x, kernel=3, stride=stride,
-                                  activation_fn=None, scope='depthwise')
+        x = depthwise_conv(x, kernel=3, stride=stride,
+                           activation_fn=None, scope='depthwise')
         x = slim.conv2d(x, out_channels // 2, (1, 1),
                         stride=1, scope='conv1x1_after')
         return x, y
 
 
-@slim.add_arg_scope
-def separable_conv2d(
+@tf.contrib.framework.add_arg_scope
+def depthwise_conv(
         x, kernel=3, stride=1, padding='SAME',
         activation_fn=None, normalizer_fn=None,
         weights_initializer=tf.contrib.layers.xavier_initializer(),
-        data_format='NHWC', scope='separable_conv2d'):
+        data_format='NHWC', scope='depthwise_conv'):
 
     with tf.variable_scope(scope):
         assert data_format == 'NHWC'
-        in_channels = x.shape[3]
+        in_channels = x.shape[3].value
         W = tf.get_variable(
             'depthwise_weights',
             [kernel, kernel, in_channels, 1], dtype=tf.float32,

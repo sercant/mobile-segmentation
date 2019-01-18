@@ -1,7 +1,3 @@
 tensorflow-gpu
-keras
-mrcnn
 scikit-image
 pycocotools
-imgaug
-opencv-python

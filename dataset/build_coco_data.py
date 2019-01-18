@@ -8,30 +8,26 @@ import PIL.Image
 from pycocotools import mask
 import tensorflow as tf
 
-sys.path.append(os.getcwd() + '/tf_models/research')
-sys.path.append(os.getcwd() + '/tf_models/research/deeplab/')
-sys.path.append(os.getcwd() + '/tf_models/research/deeplab/datasets')
-sys.path.append(os.getcwd() + '/tf_models/research/slim')
-try:
-    import build_data
-except:
-    print('Can\'t import deeplab libraries!')
-    raise
+import build_data
 
 flags = tf.app.flags
-tf.flags.DEFINE_string('dataset_dir', './data/coco',
+tf.flags.DEFINE_string('dataset_dir', None,
                        'Directory of the coco dataset.')
-tf.flags.DEFINE_string('output_dir', './data/records',
+tf.flags.DEFINE_string('output_dir', None,
                        'Output data directory.')
+tf.flags.DEFINE_string('category_names', None,
+                       'Name of the categories to include')
+tf.flags.DEFINE_integer('min_pixels', 0,
+                        'Minimum amount of pixels needed to include the image')
 
 FLAGS = flags.FLAGS
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
-_NUM_SHARDS = 4
+_NUM_SHARDS = 10
 
 
-def getCatIds(annotations, catNms=[], supNms=[], catIds=[]):
+def getCatIds(annotations, catNms=None, supNms=None, catIds=None):
     """
     filtering parameters. default skips that filter.
     :param catNms (str array)  : get cats for given cat names
@@ -57,7 +53,7 @@ def getCatIds(annotations, catNms=[], supNms=[], catIds=[]):
     return ids
 
 
-def _convert_dataset(dataset_split, dataset_dir, cat_nms=['apple', 'book', 'keyboard']):
+def _convert_dataset(dataset_split, dataset_dir, cat_nms=None):
     """Converts the ADE20k dataset into into tfrecord format.
 
     Args:
@@ -71,44 +67,66 @@ def _convert_dataset(dataset_split, dataset_dir, cat_nms=['apple', 'book', 'keyb
 
     with tf.gfile.GFile(dataset_dir + '/annotations/instances_{}2017.json'.format(dataset_split), 'r') as fid:
         groundtruth_data = json.load(fid)
-        images = groundtruth_data['images']
 
-        cat_ids = getCatIds(groundtruth_data, catNms=cat_nms)
-        class_ids = {}
-        for i, cat_id in enumerate(cat_ids):
-            class_ids[cat_id] = i + 1
+    # with tf.gfile.GFile(dataset_dir + '/annotations/instances_{}2017.json'.format(dataset_split), 'r') as fid:
+    #     groundtruth_data = json.load(fid)
 
-        annotations_index = {}
-        if 'annotations' in groundtruth_data:
-            tf.logging.info(
-                'Found groundtruth annotations. Building annotations index.')
-            for annotation in groundtruth_data['annotations']:
-                if annotation['category_id'] not in cat_ids:
-                    continue
-                image_id = annotation['image_id']
-                if image_id not in annotations_index:
-                    annotations_index[image_id] = []
-                annotations_index[image_id].append(annotation)
+    cat_ids = getCatIds(groundtruth_data, catNms=cat_nms)
+    print('Found {} categories with the'.format(len(cat_ids) + 1),
+          'given category names + background.')
+    class_ids = {}
+    for i, cat_id in enumerate(cat_ids):
+        class_ids[cat_id] = i + 1
 
-        filtered_images = []
-        for idx, image in enumerate(images):
-            if image['id'] not in annotations_index.keys():
+    # build image index
+    image_index = {}
+    for image in groundtruth_data['images']:
+        image_index[image['id']] = image
+
+    annotations_index = {}
+    if 'annotations' in groundtruth_data:
+        tf.logging.info(
+            'Found groundtruth annotations. Building annotations index.')
+        for annotation in groundtruth_data['annotations']:
+            if annotation['category_id'] not in cat_ids:
                 continue
-            annotations_list = annotations_index[image['id']]
-            if annotations_list:
-                filtered_images.append(image)
-        images = filtered_images
 
-        missing_annotation_count = 0
-        for image in images:
-            image_id = image['id']
+            image_id = annotation['image_id']
             if image_id not in annotations_index:
-                missing_annotation_count += 1
                 annotations_index[image_id] = []
-        tf.logging.info('%d images are missing annotations.',
-                        missing_annotation_count)
+            annotations_index[image_id].append(annotation)
 
-    num_images = len(images)
+    images = []
+    for image in groundtruth_data['images']:
+        if image['id'] not in annotations_index.keys():
+            continue
+        annotations_list = annotations_index[image['id']]
+        if annotations_list:
+            images.append(image)
+
+    data = []
+    for image in images:
+        anns = annotations_index[image['id']]
+        width, height = image['width'], image['height']
+
+        segmented = np.zeros((height, width), np.uint8)
+        for an in anns:
+            run_len_encoding = mask.frPyObjects(an['segmentation'],
+                                                height, width)
+            binary_mask = mask.decode(run_len_encoding)
+            if not an['iscrowd']:
+                binary_mask = np.amax(binary_mask, axis=2)
+            segmented[binary_mask == 1] = class_ids[an['category_id']]
+
+        if FLAGS.min_pixels:
+            tmp_mask = np.zeros_like(segmented)
+            tmp_mask[segmented > 0] = 1
+            if np.sum(tmp_mask) < FLAGS.min_pixels:
+                continue
+
+        data.append((image, segmented))
+
+    num_images = len(data)
     num_per_shard = int(math.ceil(num_images / float(_NUM_SHARDS)))
 
     image_reader = build_data.ImageReader('jpeg', channels=3)
@@ -126,7 +144,7 @@ def _convert_dataset(dataset_split, dataset_dir, cat_nms=['apple', 'book', 'keyb
                     i + 1, num_images, shard_id))
                 sys.stdout.flush()
                 # Read the image.
-                img = images[i]
+                img, segmented = data[i]
                 image_filename = os.path.join(
                     dataset_dir + '/{}2017'.format(dataset_split), img['file_name'])
 
@@ -139,15 +157,6 @@ def _convert_dataset(dataset_split, dataset_dir, cat_nms=['apple', 'book', 'keyb
 
                 # Read the semantic segmentation annotation.
                 # prep seg data
-                annotations = annotations_index[img['id']]
-                segmented = np.zeros((height, width), np.uint8)
-                for an in annotations:
-                    run_len_encoding = mask.frPyObjects(an['segmentation'],
-                                                        height, width)
-                    binary_mask = mask.decode(run_len_encoding)
-                    if not an['iscrowd']:
-                        binary_mask = np.amax(binary_mask, axis=2)
-                    segmented[binary_mask == 1] = class_ids[an['category_id']]
                 seg_img = PIL.Image.fromarray(segmented, mode='L')
                 output_io = io.BytesIO()
                 seg_img.save(output_io, format='PNG')
@@ -166,10 +175,13 @@ def _convert_dataset(dataset_split, dataset_dir, cat_nms=['apple', 'book', 'keyb
 def main(_):
     if not tf.gfile.IsDirectory(FLAGS.output_dir):
         tf.gfile.MakeDirs(FLAGS.output_dir)
+    cat_nms = FLAGS.category_names.split(',') if FLAGS.category_names else None
 
-    _convert_dataset('val', FLAGS.dataset_dir)
-    _convert_dataset('train', FLAGS.dataset_dir)
+    _convert_dataset('val', FLAGS.dataset_dir, cat_nms=cat_nms)
+    _convert_dataset('train', FLAGS.dataset_dir, cat_nms=cat_nms)
 
 
 if __name__ == '__main__':
+    flags.mark_flag_as_required('dataset_dir')
+    flags.mark_flag_as_required('output_dir')
     tf.app.run()

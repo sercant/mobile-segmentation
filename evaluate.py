@@ -1,19 +1,31 @@
-import sys
-import os
+# Copyright 2018 The TensorFlow Authors All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+"""Evaluation script for the DeepLab model.
+
+See model.py for more details and usage.
+"""
+
 import math
 import six
 import tensorflow as tf
 
-sys.path.append(os.getcwd() + '/tf_models/research')
-sys.path.append(os.getcwd() + '/tf_models/research/slim')
-try:
-    from deeplab import common
-    from deeplab import model
-    from deeplab_overrides.datasets import segmentation_dataset
-    from deeplab.utils import input_generator
-except:
-    print('Can\'t import deeplab libraries!')
-    raise
+import utils.load_env
+import common
+import model
+from dataset import segmentation_dataset
+from utils import input_generator
 
 slim = tf.contrib.slim
 
@@ -25,21 +37,19 @@ flags.DEFINE_string('master', '', 'BNS name of the tensorflow server')
 
 # Settings for log directories.
 
-flags.DEFINE_string('eval_logdir', './logs/eval',
-                    'Where to write the event logs.')
+flags.DEFINE_string('eval_logdir', None, 'Where to write the event logs.')
 
-flags.DEFINE_string('checkpoint_dir', './logs',
-                    'Directory of model checkpoints.')
+flags.DEFINE_string('checkpoint_dir', None, 'Directory of model checkpoints.')
 
 # Settings for evaluating the model.
 
 flags.DEFINE_integer('eval_batch_size', 1,
                      'The number of images in each batch during evaluation.')
 
-flags.DEFINE_multi_integer('eval_crop_size', [513, 513],
+flags.DEFINE_multi_integer('eval_crop_size', [224, 224],
                            'Image crop size [height, width] for evaluation.')
 
-flags.DEFINE_integer('eval_interval_secs', 60 * 2,
+flags.DEFINE_integer('eval_interval_secs', 60 * 5,
                      'How often (in seconds) to run evaluation.')
 
 # For `xception_65`, use atrous_rates = [12, 24, 36] if output_stride = 8, or
@@ -48,7 +58,7 @@ flags.DEFINE_integer('eval_interval_secs', 60 * 2,
 flags.DEFINE_multi_integer('atrous_rates', None,
                            'Atrous rates for atrous spatial pyramid pooling.')
 
-flags.DEFINE_integer('output_stride', 8,
+flags.DEFINE_integer('output_stride', 16,
                      'The ratio of input to output spatial resolution.')
 
 # Change to [0.5, 0.75, 1.0, 1.25, 1.5, 1.75] for multi-scale test.
@@ -61,14 +71,13 @@ flags.DEFINE_bool('add_flipped_images', False,
 
 # Dataset settings.
 
-flags.DEFINE_string('dataset', 'coco',
+flags.DEFINE_string('dataset', 'ade20k',
                     'Name of the segmentation dataset.')
 
 flags.DEFINE_string('eval_split', 'val',
                     'Which split of the dataset used for evaluation')
 
-flags.DEFINE_string('dataset_dir', './data/records',
-                    'Where the dataset reside.')
+flags.DEFINE_string('dataset_dir', None, 'Where the dataset reside.')
 
 flags.DEFINE_integer('max_number_of_evaluations', 0,
                      'Maximum number of eval iterations. Will loop '
@@ -133,9 +142,6 @@ def main(unused_argv):
         # Define the evaluation metric.
         metric_map = {}
         metric_map[predictions_tag] = tf.metrics.mean_iou(
-            predictions, labels, dataset.num_classes, weights=weights)
-
-        metric_map['accuracy_per_class'] = tf.metrics.mean_per_class_accuracy(
             predictions, labels, dataset.num_classes, weights=weights)
 
         metrics_to_values, metrics_to_updates = (

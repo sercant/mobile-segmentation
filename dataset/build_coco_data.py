@@ -124,60 +124,59 @@ def _convert_dataset(dataset_split, dataset_dir, cat_nms=None):
     tf.logging.info('%d images are missing annotations.',
                     missing_annotation_count)
 
+    num_images = len(images)
+    num_per_shard = int(math.ceil(num_images / float(_NUM_SHARDS)))
 
-num_images = len(images)
-num_per_shard = int(math.ceil(num_images / float(_NUM_SHARDS)))
+    image_reader = build_data.ImageReader('jpeg', channels=3)
+    label_reader = build_data.ImageReader('png', channels=1)
+    # os.path.join(dataset_dir + '/{}2017'.format(dataset_split), img['file_name'])
+    for shard_id in range(_NUM_SHARDS):
+        output_filename = os.path.join(
+            FLAGS.output_dir,
+            '%s-%05d-of-%05d.tfrecord' % (dataset_split, shard_id, _NUM_SHARDS))
+        with tf.python_io.TFRecordWriter(output_filename) as tfrecord_writer:
+            start_idx = shard_id * num_per_shard
+            end_idx = min((shard_id + 1) * num_per_shard, num_images)
+            for i in range(start_idx, end_idx):
+                sys.stdout.write('\r>> Converting image %d/%d shard %d' % (
+                    i + 1, num_images, shard_id))
+                sys.stdout.flush()
+                # Read the image.
+                img = images[i]
+                image_filename = os.path.join(
+                    dataset_dir + '/{}2017'.format(dataset_split), img['file_name'])
 
-image_reader = build_data.ImageReader('jpeg', channels=3)
-label_reader = build_data.ImageReader('png', channels=1)
-# os.path.join(dataset_dir + '/{}2017'.format(dataset_split), img['file_name'])
-for shard_id in range(_NUM_SHARDS):
-    output_filename = os.path.join(
-        FLAGS.output_dir,
-        '%s-%05d-of-%05d.tfrecord' % (dataset_split, shard_id, _NUM_SHARDS))
-    with tf.python_io.TFRecordWriter(output_filename) as tfrecord_writer:
-        start_idx = shard_id * num_per_shard
-        end_idx = min((shard_id + 1) * num_per_shard, num_images)
-        for i in range(start_idx, end_idx):
-            sys.stdout.write('\r>> Converting image %d/%d shard %d' % (
-                i + 1, num_images, shard_id))
-            sys.stdout.flush()
-            # Read the image.
-            img = images[i]
-            image_filename = os.path.join(
-                dataset_dir + '/{}2017'.format(dataset_split), img['file_name'])
+                # image_data = tf.gfile.GFile(image_filename, 'rb').read()
+                image_p = PIL.Image.open(image_filename)
+                output_io_img = io.BytesIO()
+                image_p.save(output_io_img, format='JPEG')
+                image_data = output_io_img.getvalue()
+                height, width = image_reader.read_image_dims(image_data)
 
-            # image_data = tf.gfile.GFile(image_filename, 'rb').read()
-            image_p = PIL.Image.open(image_filename)
-            output_io_img = io.BytesIO()
-            image_p.save(output_io_img, format='JPEG')
-            image_data = output_io_img.getvalue()
-            height, width = image_reader.read_image_dims(image_data)
+                # Read the semantic segmentation annotation.
+                # prep seg data
+                annotations = annotations_index[img['id']]
+                segmented = np.zeros((height, width), np.uint8)
+                for an in annotations:
+                    run_len_encoding = mask.frPyObjects(an['segmentation'],
+                                                        height, width)
+                    binary_mask = mask.decode(run_len_encoding)
+                    if not an['iscrowd']:
+                        binary_mask = np.amax(binary_mask, axis=2)
+                    segmented[binary_mask == 1] = class_ids[an['category_id']]
+                seg_img = PIL.Image.fromarray(segmented, mode='L')
+                output_io = io.BytesIO()
+                seg_img.save(output_io, format='PNG')
+                seg_data = output_io.getvalue()
+                seg_height, seg_width = label_reader.read_image_dims(seg_data)
 
-            # Read the semantic segmentation annotation.
-            # prep seg data
-            annotations = annotations_index[img['id']]
-            segmented = np.zeros((height, width), np.uint8)
-            for an in annotations:
-                run_len_encoding = mask.frPyObjects(an['segmentation'],
-                                                    height, width)
-                binary_mask = mask.decode(run_len_encoding)
-                if not an['iscrowd']:
-                    binary_mask = np.amax(binary_mask, axis=2)
-                segmented[binary_mask == 1] = class_ids[an['category_id']]
-            seg_img = PIL.Image.fromarray(segmented, mode='L')
-            output_io = io.BytesIO()
-            seg_img.save(output_io, format='PNG')
-            seg_data = output_io.getvalue()
-            seg_height, seg_width = label_reader.read_image_dims(seg_data)
+                assert height == seg_height and width == seg_width
 
-            assert height == seg_height and width == seg_width
-
-            example = build_data.image_seg_to_tfexample(
-                image_data, image_filename, height, width, seg_data)
-            tfrecord_writer.write(example.SerializeToString())
-    sys.stdout.write('\n')
-    sys.stdout.flush()
+                example = build_data.image_seg_to_tfexample(
+                    image_data, image_filename, height, width, seg_data)
+                tfrecord_writer.write(example.SerializeToString())
+        sys.stdout.write('\n')
+        sys.stdout.flush()
 
 
 def main(_):

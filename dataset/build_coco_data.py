@@ -11,12 +11,14 @@ import tensorflow as tf
 import build_data
 
 flags = tf.app.flags
-tf.flags.DEFINE_string('dataset_dir', './data/coco',
+tf.flags.DEFINE_string('dataset_dir', None,
                        'Directory of the coco dataset.')
-tf.flags.DEFINE_string('output_dir', './data/records',
+tf.flags.DEFINE_string('output_dir', None,
                        'Output data directory.')
 tf.flags.DEFINE_string('category_names', None,
                        'Name of the categories to include')
+tf.flags.DEFINE_integer('min_pixels', 0,
+                        'Minimum amount of pixels needed to include the image')
 
 FLAGS = flags.FLAGS
 
@@ -25,7 +27,7 @@ tf.logging.set_verbosity(tf.logging.INFO)
 _NUM_SHARDS = 10
 
 
-def getCatIds(annotations, catNms=[], supNms=[], catIds=[]):
+def getCatIds(annotations, catNms=None, supNms=None, catIds=None):
     """
     filtering parameters. default skips that filter.
     :param catNms (str array)  : get cats for given cat names
@@ -65,98 +67,117 @@ def _convert_dataset(dataset_split, dataset_dir, cat_nms=None):
 
     with tf.gfile.GFile(dataset_dir + '/annotations/instances_{}2017.json'.format(dataset_split), 'r') as fid:
         groundtruth_data = json.load(fid)
-        images = groundtruth_data['images']
 
-        cat_ids = getCatIds(groundtruth_data, catNms=cat_nms)
-        print('Found {} categories with the\
-            given category names + background.'.format(len(cat_ids) + 1))
-        class_ids = {}
-        for i, cat_id in enumerate(cat_ids):
-            class_ids[cat_id] = i + 1
+    # with tf.gfile.GFile(dataset_dir + '/annotations/instances_{}2017.json'.format(dataset_split), 'r') as fid:
+    #     groundtruth_data = json.load(fid)
 
-        annotations_index = {}
-        if 'annotations' in groundtruth_data:
-            tf.logging.info(
-                'Found groundtruth annotations. Building annotations index.')
-            for annotation in groundtruth_data['annotations']:
-                if annotation['category_id'] not in cat_ids:
-                    continue
-                image_id = annotation['image_id']
-                if image_id not in annotations_index:
-                    annotations_index[image_id] = []
-                annotations_index[image_id].append(annotation)
+    cat_ids = getCatIds(groundtruth_data, catNms=cat_nms)
+    print('Found {} categories with the'.format(len(cat_ids) + 1),
+          'given category names + background.')
+    class_ids = {}
+    for i, cat_id in enumerate(cat_ids):
+        class_ids[cat_id] = i + 1
 
-        filtered_images = []
-        for idx, image in enumerate(images):
-            if image['id'] not in annotations_index.keys():
+    # build image index
+    image_index = {}
+    for image in groundtruth_data['images']:
+        image_index[image['id']] = image
+
+    annotations_index = {}
+    if 'annotations' in groundtruth_data:
+        tf.logging.info(
+            'Found groundtruth annotations. Building annotations index.')
+        for annotation in groundtruth_data['annotations']:
+            if annotation['category_id'] not in cat_ids:
                 continue
-            annotations_list = annotations_index[image['id']]
-            if annotations_list:
-                filtered_images.append(image)
-        images = filtered_images
 
-        missing_annotation_count = 0
-        for image in images:
-            image_id = image['id']
+            image = image_index[annotation['image_id']]
+            width, height = image['width'], image['height']
+            run_len_encoding = mask.frPyObjects(annotation['segmentation'],
+                                                height, width)
+            binary_mask = mask.decode(run_len_encoding)
+            if not annotation['iscrowd']:
+                binary_mask = np.amax(binary_mask, axis=2)
+
+            if FLAGS.min_pixels and np.sum(binary_mask) < FLAGS.min_pixels:
+                continue
+
+            image_id = annotation['image_id']
             if image_id not in annotations_index:
-                missing_annotation_count += 1
                 annotations_index[image_id] = []
-        tf.logging.info('%d images are missing annotations.',
-                        missing_annotation_count)
+            annotations_index[image_id].append(annotation)
 
-    num_images = len(images)
-    num_per_shard = int(math.ceil(num_images / float(_NUM_SHARDS)))
+    images = []
+    for image in groundtruth_data['images']:
+        if image['id'] not in annotations_index.keys():
+            continue
+        annotations_list = annotations_index[image['id']]
+        if annotations_list:
+            images.append(image)
 
-    image_reader = build_data.ImageReader('jpeg', channels=3)
-    label_reader = build_data.ImageReader('png', channels=1)
-    # os.path.join(dataset_dir + '/{}2017'.format(dataset_split), img['file_name'])
-    for shard_id in range(_NUM_SHARDS):
-        output_filename = os.path.join(
-            FLAGS.output_dir,
-            '%s-%05d-of-%05d.tfrecord' % (dataset_split, shard_id, _NUM_SHARDS))
-        with tf.python_io.TFRecordWriter(output_filename) as tfrecord_writer:
-            start_idx = shard_id * num_per_shard
-            end_idx = min((shard_id + 1) * num_per_shard, num_images)
-            for i in range(start_idx, end_idx):
-                sys.stdout.write('\r>> Converting image %d/%d shard %d' % (
-                    i + 1, num_images, shard_id))
-                sys.stdout.flush()
-                # Read the image.
-                img = images[i]
-                image_filename = os.path.join(
-                    dataset_dir + '/{}2017'.format(dataset_split), img['file_name'])
+    missing_annotation_count = 0
+    for image in images:
+        image_id = image['id']
+        if image_id not in annotations_index:
+            missing_annotation_count += 1
+            annotations_index[image_id] = []
+    tf.logging.info('%d images are missing annotations.',
+                    missing_annotation_count)
 
-                # image_data = tf.gfile.GFile(image_filename, 'rb').read()
-                image_p = PIL.Image.open(image_filename)
-                output_io_img = io.BytesIO()
-                image_p.save(output_io_img, format='JPEG')
-                image_data = output_io_img.getvalue()
-                height, width = image_reader.read_image_dims(image_data)
 
-                # Read the semantic segmentation annotation.
-                # prep seg data
-                annotations = annotations_index[img['id']]
-                segmented = np.zeros((height, width), np.uint8)
-                for an in annotations:
-                    run_len_encoding = mask.frPyObjects(an['segmentation'],
-                                                        height, width)
-                    binary_mask = mask.decode(run_len_encoding)
-                    if not an['iscrowd']:
-                        binary_mask = np.amax(binary_mask, axis=2)
-                    segmented[binary_mask == 1] = class_ids[an['category_id']]
-                seg_img = PIL.Image.fromarray(segmented, mode='L')
-                output_io = io.BytesIO()
-                seg_img.save(output_io, format='PNG')
-                seg_data = output_io.getvalue()
-                seg_height, seg_width = label_reader.read_image_dims(seg_data)
+num_images = len(images)
+num_per_shard = int(math.ceil(num_images / float(_NUM_SHARDS)))
 
-                assert height == seg_height and width == seg_width
+image_reader = build_data.ImageReader('jpeg', channels=3)
+label_reader = build_data.ImageReader('png', channels=1)
+# os.path.join(dataset_dir + '/{}2017'.format(dataset_split), img['file_name'])
+for shard_id in range(_NUM_SHARDS):
+    output_filename = os.path.join(
+        FLAGS.output_dir,
+        '%s-%05d-of-%05d.tfrecord' % (dataset_split, shard_id, _NUM_SHARDS))
+    with tf.python_io.TFRecordWriter(output_filename) as tfrecord_writer:
+        start_idx = shard_id * num_per_shard
+        end_idx = min((shard_id + 1) * num_per_shard, num_images)
+        for i in range(start_idx, end_idx):
+            sys.stdout.write('\r>> Converting image %d/%d shard %d' % (
+                i + 1, num_images, shard_id))
+            sys.stdout.flush()
+            # Read the image.
+            img = images[i]
+            image_filename = os.path.join(
+                dataset_dir + '/{}2017'.format(dataset_split), img['file_name'])
 
-                example = build_data.image_seg_to_tfexample(
-                    image_data, image_filename, height, width, seg_data)
-                tfrecord_writer.write(example.SerializeToString())
-        sys.stdout.write('\n')
-        sys.stdout.flush()
+            # image_data = tf.gfile.GFile(image_filename, 'rb').read()
+            image_p = PIL.Image.open(image_filename)
+            output_io_img = io.BytesIO()
+            image_p.save(output_io_img, format='JPEG')
+            image_data = output_io_img.getvalue()
+            height, width = image_reader.read_image_dims(image_data)
+
+            # Read the semantic segmentation annotation.
+            # prep seg data
+            annotations = annotations_index[img['id']]
+            segmented = np.zeros((height, width), np.uint8)
+            for an in annotations:
+                run_len_encoding = mask.frPyObjects(an['segmentation'],
+                                                    height, width)
+                binary_mask = mask.decode(run_len_encoding)
+                if not an['iscrowd']:
+                    binary_mask = np.amax(binary_mask, axis=2)
+                segmented[binary_mask == 1] = class_ids[an['category_id']]
+            seg_img = PIL.Image.fromarray(segmented, mode='L')
+            output_io = io.BytesIO()
+            seg_img.save(output_io, format='PNG')
+            seg_data = output_io.getvalue()
+            seg_height, seg_width = label_reader.read_image_dims(seg_data)
+
+            assert height == seg_height and width == seg_width
+
+            example = build_data.image_seg_to_tfexample(
+                image_data, image_filename, height, width, seg_data)
+            tfrecord_writer.write(example.SerializeToString())
+    sys.stdout.write('\n')
+    sys.stdout.flush()
 
 
 def main(_):
@@ -169,4 +190,6 @@ def main(_):
 
 
 if __name__ == '__main__':
+    flags.mark_flag_as_required('dataset_dir')
+    flags.mark_flag_as_required('output_dir')
     tf.app.run()

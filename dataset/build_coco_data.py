@@ -91,19 +91,6 @@ def _convert_dataset(dataset_split, dataset_dir, cat_nms=None):
             if annotation['category_id'] not in cat_ids:
                 continue
 
-            if FLAGS.min_pixels:
-                min_pixels = FLAGS.min_pixels
-            image = image_index[annotation['image_id']]
-            width, height = image['width'], image['height']
-            run_len_encoding = mask.frPyObjects(annotation['segmentation'],
-                                                height, width)
-            binary_mask = mask.decode(run_len_encoding)
-            if not annotation['iscrowd']:
-                binary_mask = np.amax(binary_mask, axis=2)
-
-                if np.sum(binary_mask) < min_pixels:
-                continue
-
             image_id = annotation['image_id']
             if image_id not in annotations_index:
                 annotations_index[image_id] = []
@@ -117,16 +104,29 @@ def _convert_dataset(dataset_split, dataset_dir, cat_nms=None):
         if annotations_list:
             images.append(image)
 
-    missing_annotation_count = 0
+    data = []
     for image in images:
-        image_id = image['id']
-        if image_id not in annotations_index:
-            missing_annotation_count += 1
-            annotations_index[image_id] = []
-    tf.logging.info('%d images are missing annotations.',
-                    missing_annotation_count)
+        anns = annotations_index[image['id']]
+        width, height = image['width'], image['height']
 
-    num_images = len(images)
+        segmented = np.zeros((height, width), np.uint8)
+        for an in anns:
+            run_len_encoding = mask.frPyObjects(an['segmentation'],
+                                                height, width)
+            binary_mask = mask.decode(run_len_encoding)
+            if not an['iscrowd']:
+                binary_mask = np.amax(binary_mask, axis=2)
+            segmented[binary_mask == 1] = class_ids[an['category_id']]
+
+        if FLAGS.min_pixels:
+            tmp_mask = np.zeros_like(segmented)
+            tmp_mask[segmented > 0] = 1
+            if np.sum(tmp_mask) < FLAGS.min_pixels:
+                continue
+
+        data.append((image, segmented))
+
+    num_images = len(data)
     num_per_shard = int(math.ceil(num_images / float(_NUM_SHARDS)))
 
     image_reader = build_data.ImageReader('jpeg', channels=3)
@@ -144,7 +144,7 @@ def _convert_dataset(dataset_split, dataset_dir, cat_nms=None):
                     i + 1, num_images, shard_id))
                 sys.stdout.flush()
                 # Read the image.
-                img = images[i]
+                img, segmented = data[i]
                 image_filename = os.path.join(
                     dataset_dir + '/{}2017'.format(dataset_split), img['file_name'])
 
@@ -157,15 +157,6 @@ def _convert_dataset(dataset_split, dataset_dir, cat_nms=None):
 
                 # Read the semantic segmentation annotation.
                 # prep seg data
-                annotations = annotations_index[img['id']]
-                segmented = np.zeros((height, width), np.uint8)
-                for an in annotations:
-                    run_len_encoding = mask.frPyObjects(an['segmentation'],
-                                                        height, width)
-                    binary_mask = mask.decode(run_len_encoding)
-                    if not an['iscrowd']:
-                        binary_mask = np.amax(binary_mask, axis=2)
-                    segmented[binary_mask == 1] = class_ids[an['category_id']]
                 seg_img = PIL.Image.fromarray(segmented, mode='L')
                 output_io = io.BytesIO()
                 seg_img.save(output_io, format='PNG')

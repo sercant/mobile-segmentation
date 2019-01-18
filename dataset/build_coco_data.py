@@ -15,6 +15,8 @@ tf.flags.DEFINE_string('dataset_dir', './data/coco',
                        'Directory of the coco dataset.')
 tf.flags.DEFINE_string('output_dir', './data/records',
                        'Output data directory.')
+tf.flags.DEFINE_string('category_names', None,
+                       'Name of the categories to include')
 
 FLAGS = flags.FLAGS
 
@@ -66,6 +68,8 @@ def _convert_dataset(dataset_split, dataset_dir, cat_nms=None):
         images = groundtruth_data['images']
 
         cat_ids = getCatIds(groundtruth_data, catNms=cat_nms)
+        print('Found {} categories with the\
+            given category names + background.'.format(len(cat_ids) + 1))
         class_ids = {}
         for i, cat_id in enumerate(cat_ids):
             class_ids[cat_id] = i + 1
@@ -158,9 +162,10 @@ def _convert_dataset(dataset_split, dataset_dir, cat_nms=None):
 def main(_):
     if not tf.gfile.IsDirectory(FLAGS.output_dir):
         tf.gfile.MakeDirs(FLAGS.output_dir)
+    cat_nms = FLAGS.category_names.split(',') if FLAGS.category_names else None
 
-    _convert_dataset('val', FLAGS.dataset_dir)
-    _convert_dataset('train', FLAGS.dataset_dir)
+    _convert_dataset('val', FLAGS.dataset_dir, cat_nms=cat_nms)
+    _convert_dataset('train', FLAGS.dataset_dir, cat_nms=cat_nms)
 
 
 if __name__ == '__main__':

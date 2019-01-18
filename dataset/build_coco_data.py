@@ -91,6 +91,8 @@ def _convert_dataset(dataset_split, dataset_dir, cat_nms=None):
             if annotation['category_id'] not in cat_ids:
                 continue
 
+            if FLAGS.min_pixels:
+                min_pixels = FLAGS.min_pixels
             image = image_index[annotation['image_id']]
             width, height = image['width'], image['height']
             run_len_encoding = mask.frPyObjects(annotation['segmentation'],
@@ -99,7 +101,7 @@ def _convert_dataset(dataset_split, dataset_dir, cat_nms=None):
             if not annotation['iscrowd']:
                 binary_mask = np.amax(binary_mask, axis=2)
 
-            if FLAGS.min_pixels and np.sum(binary_mask) < FLAGS.min_pixels:
+                if np.sum(binary_mask) < min_pixels:
                 continue
 
             image_id = annotation['image_id']

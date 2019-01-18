@@ -84,7 +84,7 @@ networks_map = {
 # A map from network name to network arg scope.
 arg_scopes_map = {
     'mobilenet_v2': mobilenet_v2.training_scope,
-    'shufflenet_v2': shufflenet_v2.training_scope, # TODO fix
+    'shufflenet_v2': shufflenet_v2.training_scope,
     # 'resnet_v1_50': resnet_utils.resnet_arg_scope,
     # 'resnet_v1_50_beta': resnet_utils.resnet_arg_scope,
     # 'resnet_v1_101': resnet_utils.resnet_arg_scope,

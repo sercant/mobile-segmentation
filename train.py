@@ -264,7 +264,8 @@ def main(unused_argv):
                 scale_factor_step_size=FLAGS.scale_factor_step_size,
                 dataset_split=FLAGS.train_split,
                 is_training=True,
-                model_variant=FLAGS.model_variant)
+                model_variant=FLAGS.model_variant,
+                num_readers=6)
             inputs_queue = prefetch_queue.prefetch_queue(
                 samples, capacity=128 * config.num_clones)
 

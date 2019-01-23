@@ -215,7 +215,7 @@ def _build_deeplab(inputs_queue, outputs_to_num_classes, ignore_label):
         name=common.OUTPUT_TYPE)
 
     for output, num_classes in six.iteritems(outputs_to_num_classes):
-        train_utils.add_lovasz_softmax_loss_for_each_scale(
+        train_utils.add_softmax_cross_entropy_loss_for_each_scale(
             outputs_to_scales_to_logits[output],
             samples[common.LABEL],
             num_classes,
@@ -331,8 +331,8 @@ def main(unused_argv):
                 FLAGS.learning_rate_decay_step, FLAGS.learning_rate_decay_factor,
                 FLAGS.training_number_of_steps, FLAGS.learning_power,
                 FLAGS.slow_start_step, FLAGS.slow_start_learning_rate)
-            optimizer = tf.train.AdadeltaOptimizer(
-                learning_rate)
+            optimizer = tf.train.MomentumOptimizer(
+                learning_rate, FLAGS.momentum)
             summaries.add(tf.summary.scalar('learning_rate', learning_rate))
 
         startup_delay_steps = FLAGS.task * FLAGS.startup_delay_steps

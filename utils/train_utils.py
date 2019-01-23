@@ -18,6 +18,7 @@ import six
 
 import tensorflow as tf
 from core import preprocess_utils
+from utils.loss import lovasz_softmax
 
 slim = tf.contrib.slim
 

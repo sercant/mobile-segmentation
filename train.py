@@ -118,6 +118,9 @@ flags.DEFINE_float('last_layer_gradient_multiplier', 1.0,
 flags.DEFINE_boolean('upsample_logits', True,
                      'Upsample logits during training.')
 
+flags.DEFINE_boolean('loss_function', 'sce',
+                     'Loss function to use for optimizing default=softmax_cross_entropy.')
+
 # Settings for fine-tuning the network.
 
 flags.DEFINE_string('tf_initial_checkpoint', None,
@@ -215,7 +218,10 @@ def _build_deeplab(inputs_queue, outputs_to_num_classes, ignore_label):
         name=common.OUTPUT_TYPE)
 
     for output, num_classes in six.iteritems(outputs_to_num_classes):
-        train_utils.add_softmax_cross_entropy_loss_for_each_scale(
+        loss_func = train_utils.add_softmax_cross_entropy_loss_for_each_scale
+        if FLAGS.loss_function in 'lovasz':
+            loss_func = train_utils.add_lovasz_softmax_loss_for_each_scale
+        loss_func(
             outputs_to_scales_to_logits[output],
             samples[common.LABEL],
             num_classes,

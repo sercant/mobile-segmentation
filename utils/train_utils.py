@@ -18,6 +18,7 @@ import six
 
 import tensorflow as tf
 from core import preprocess_utils
+from utils.loss import lovasz_softmax
 
 slim = tf.contrib.slim
 
@@ -76,6 +77,40 @@ def add_softmax_cross_entropy_loss_for_each_scale(scales_to_logits,
             tf.reshape(logits, shape=[-1, num_classes]),
             weights=not_ignore_mask,
             scope=loss_scope)
+
+
+def add_lovasz_softmax_loss_for_each_scale(scales_to_logits,
+                                           labels,
+                                           num_classes,
+                                           ignore_label,
+                                           loss_weight=1.0,
+                                           upsample_logits=True,
+                                           scope=None):
+
+    if labels is None:
+        raise ValueError('No label for lovasz softmax loss.')
+
+    for scale, logits in six.iteritems(scales_to_logits):
+        loss_scope = None
+        if scope:
+            loss_scope = '%s_%s' % (scope, scale)
+
+        if upsample_logits:
+            # Label is not downsampled, and instead we upsample logits.
+            logits = tf.image.resize_bilinear(
+                logits,
+                preprocess_utils.resolve_shape(labels, 4)[1:3],
+                align_corners=True)
+            scaled_labels = labels
+        else:
+            # Label is downsampled to the same size as logits.
+            scaled_labels = tf.image.resize_nearest_neighbor(
+                labels,
+                preprocess_utils.resolve_shape(logits, 4)[1:3],
+                align_corners=True)
+        logits = tf.nn.softmax(logits)
+        tf.losses.add_loss(lovasz_softmax(
+            logits, scaled_labels, ignore=ignore_label))
 
 
 def get_model_init_fn(train_logdir,

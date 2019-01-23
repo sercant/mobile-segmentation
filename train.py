@@ -118,7 +118,7 @@ flags.DEFINE_float('last_layer_gradient_multiplier', 1.0,
 flags.DEFINE_boolean('upsample_logits', True,
                      'Upsample logits during training.')
 
-flags.DEFINE_boolean('loss_function', 'sce',
+flags.DEFINE_string('loss_function', 'sce',
                      'Loss function to use for optimizing default=softmax_cross_entropy.')
 
 # Settings for fine-tuning the network.

@@ -63,7 +63,7 @@ flags.DEFINE_string('train_logdir', None,
 flags.DEFINE_integer('log_steps', 10,
                      'Display logging information at every log_steps.')
 
-flags.DEFINE_integer('save_interval_secs', 1200,
+flags.DEFINE_integer('save_interval_secs', 600,
                      'How often, in seconds, we save the model to disk.')
 
 flags.DEFINE_integer('save_summaries_secs', 600,
@@ -271,7 +271,8 @@ def main(unused_argv):
                 dataset_split=FLAGS.train_split,
                 is_training=True,
                 model_variant=FLAGS.model_variant,
-                num_readers=6)
+                num_readers=8,
+                num_threads=8)
             inputs_queue = prefetch_queue.prefetch_queue(
                 samples, capacity=128 * config.num_clones)
 
@@ -337,8 +338,7 @@ def main(unused_argv):
                 FLAGS.learning_rate_decay_step, FLAGS.learning_rate_decay_factor,
                 FLAGS.training_number_of_steps, FLAGS.learning_power,
                 FLAGS.slow_start_step, FLAGS.slow_start_learning_rate)
-            optimizer = tf.train.MomentumOptimizer(
-                learning_rate, FLAGS.momentum)
+            optimizer = tf.train.AdamOptimizer(learning_rate)
             summaries.add(tf.summary.scalar('learning_rate', learning_rate))
 
         startup_delay_steps = FLAGS.task * FLAGS.startup_delay_steps
@@ -379,7 +379,7 @@ def main(unused_argv):
         # Soft placement allows placing on CPU ops without GPU implementation.
         session_config = tf.ConfigProto(
             allow_soft_placement=True, log_device_placement=False)
-        session_config.gpu_options.per_process_gpu_memory_fraction = 0.9
+        session_config.gpu_options.per_process_gpu_memory_fraction = 0.8
 
         # Start the training.
         slim.learning.train(

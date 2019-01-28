@@ -161,7 +161,14 @@ def main(unused_argv):
         num_eval_iters = None
         if FLAGS.max_number_of_evaluations > 0:
             num_eval_iters = FLAGS.max_number_of_evaluations
-        slim.evaluation.evaluation_loop(
+
+        # Soft placement allows placing on CPU ops without GPU implementation.
+        session_config = tf.ConfigProto(
+            allow_soft_placement=True, log_device_placement=False)
+        session_config.gpu_options.allow_growth = True
+
+        anan = slim.evaluation.evaluation_loop(
+            session_config=session_config,
             master=FLAGS.master,
             checkpoint_dir=FLAGS.checkpoint_dir,
             logdir=FLAGS.eval_logdir,

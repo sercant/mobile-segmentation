@@ -110,7 +110,7 @@ def add_lovasz_softmax_loss_for_each_scale(scales_to_logits,
                 align_corners=True)
         logits = tf.nn.softmax(logits)
         tf.losses.add_loss(lovasz_softmax(
-            logits, scaled_labels, ignore=ignore_label))
+            logits, scaled_labels, ignore=ignore_label, classes='present'))
 
 
 def get_model_init_fn(train_logdir,

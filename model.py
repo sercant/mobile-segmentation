@@ -57,7 +57,7 @@ from core import feature_extractor
 from core import utils
 
 
-import tensorflow.contrib.slim as slim
+slim = tf.contrib.slim
 
 LOGITS_SCOPE_NAME = 'logits'
 MERGED_LOGITS_SCOPE = 'merged_logits'
@@ -186,32 +186,11 @@ def predict_labels(images, model_options, image_pyramid=None):
     predictions = {}
     for output in sorted(outputs_to_scales_to_logits):
         scales_to_logits = outputs_to_scales_to_logits[output]
-        logits = scales_to_logits[MERGED_LOGITS_SCOPE]
-        # tf.image.resize_bilinear(
-        #     scales_to_logits[MERGED_LOGITS_SCOPE],
-        #     tf.shape(images)[1:3],
-        #     align_corners=True)
-        predictions['{}_logits'.format(output)] = logits
-        predictions[output] = tf.argmax(logits, 3, output_type=tf.float32)
-
-    return predictions
-
-
-def predict_labels_tflite(images, model_options, image_pyramid=None):
-    outputs_to_scales_to_logits = multi_scale_logits(
-        images,
-        model_options=model_options,
-        image_pyramid=image_pyramid,
-        is_training=False,
-        fine_tune_batch_norm=False,
-        resize_directly=True)
-
-    predictions = {}
-    for output in sorted(outputs_to_scales_to_logits):
-        scales_to_logits = outputs_to_scales_to_logits[output]
-        logits = scales_to_logits[MERGED_LOGITS_SCOPE]
-        predictions['{}_logits'.format(output)] = logits
-        predictions[output] = tf.argmax(logits, 3, output_type=tf.int32)
+        logits = tf.image.resize_bilinear(
+            scales_to_logits[MERGED_LOGITS_SCOPE],
+            tf.shape(images)[1:3],
+            align_corners=True)
+        predictions[output] = tf.argmax(logits, 3)
 
     return predictions
 
@@ -237,8 +216,7 @@ def multi_scale_logits(images,
                        image_pyramid,
                        weight_decay=0.0001,
                        is_training=False,
-                       fine_tune_batch_norm=False,
-                       resize_directly=False):
+                       fine_tune_batch_norm=False):
     """Gets the logits for multi-scale inputs.
 
     The returned logits are all downsampled (due to max-pooling layers)
@@ -279,8 +257,12 @@ def multi_scale_logits(images,
     logits_output_stride = (
         model_options.decoder_output_stride or model_options.output_stride)
 
-    logits_height = crop_height if resize_directly else scale_dimension(crop_height, max(1.0, max(image_pyramid)) / logits_output_stride)
-    logits_width = crop_width if resize_directly else scale_dimension(crop_width, max(1.0, max(image_pyramid)) / logits_output_stride)
+    logits_height = scale_dimension(
+        crop_height,
+        max(1.0, max(image_pyramid)) / logits_output_stride)
+    logits_width = scale_dimension(
+        crop_width,
+        max(1.0, max(image_pyramid)) / logits_output_stride)
 
     # Compute the logits for each scale in the image pyramid.
     outputs_to_scales_to_logits = {
@@ -377,8 +359,7 @@ def extract_features(images,
         weight_decay=weight_decay,
         reuse=reuse,
         is_training=is_training,
-        fine_tune_batch_norm=fine_tune_batch_norm,
-        preprocess_images=model_options.preprocess_images)
+        fine_tune_batch_norm=fine_tune_batch_norm)
 
     if not model_options.aspp_with_batch_norm:
         return features, end_points

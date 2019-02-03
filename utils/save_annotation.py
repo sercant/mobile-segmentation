@@ -48,5 +48,5 @@ def save_annotation(label,
         colored_label = label
 
     pil_image = img.fromarray(colored_label.astype(dtype=np.uint8))
-    with tf.gfile.Open('{}/{}.png'.format(save_dir, filename.replace('b\'', '',).replace('\'')), mode='w') as f:
+    with tf.gfile.Open('{}/{}.png'.format(save_dir, filename.replace('b\'', '',).replace('\'', '')), mode='w') as f:
         pil_image.save(f, 'PNG')

@@ -23,7 +23,6 @@ import time
 import numpy as np
 import tensorflow as tf
 
-import utils.load_env
 import common
 import model
 from dataset import segmentation_dataset
@@ -104,6 +103,9 @@ _IMAGE_FORMAT = '%06d_image'
 # The format to save prediction
 _PREDICTION_FORMAT = '%06d_prediction'
 
+# The format to save ground truth
+_GROUNDTRUTH_FORMAT = '%06d_groundtruth'
+
 # To evaluate Cityscapes results on the evaluation server, the labels used
 # during training should be mapped to the labels for evaluation.
 _CITYSCAPES_TRAIN_ID_TO_EVAL_ID = [7, 8, 11, 12, 13, 17, 19, 20, 21, 22,
@@ -133,7 +135,7 @@ def _convert_train_id_to_eval_id(prediction, train_id_to_eval_id):
 
 def _process_batch(sess, original_images, semantic_predictions, image_names,
                    image_heights, image_widths, image_id_offset, save_dir,
-                   raw_save_dir, train_id_to_eval_id=None):
+                   raw_save_dir, train_id_to_eval_id=None, labels=None):
     """Evaluates one single batch qualitatively.
 
     Args:
@@ -152,8 +154,8 @@ def _process_batch(sess, original_images, semantic_predictions, image_names,
      semantic_predictions,
      image_names,
      image_heights,
-     image_widths) = sess.run([original_images, semantic_predictions,
-                               image_names, image_heights, image_widths])
+     image_widths, labels) = sess.run([original_images, semantic_predictions,
+                               image_names, image_heights, image_widths, labels])
 
     num_image = semantic_predictions.shape[0]
     for i in range(num_image):
@@ -173,6 +175,13 @@ def _process_batch(sess, original_images, semantic_predictions, image_names,
             crop_semantic_prediction, save_dir,
             _PREDICTION_FORMAT % (image_id_offset + i), add_colormap=True,
             colormap_type=FLAGS.colormap_type)
+
+        # Save groundtruth.
+        if labels:
+            save_annotation.save_annotation(
+                labels, save_dir,
+                _GROUNDTRUTH_FORMAT % (image_id_offset + i), add_colormap=True,
+                colormap_type=FLAGS.colormap_type)
 
         if FLAGS.also_save_raw_predictions:
             image_filename = os.path.basename(image_names[i])
@@ -302,6 +311,7 @@ def main(unused_argv):
                                    image_names=samples[common.IMAGE_NAME],
                                    image_heights=samples[common.HEIGHT],
                                    image_widths=samples[common.WIDTH],
+                                   labels=samples[common.LABEL],
                                    image_id_offset=image_id_offset,
                                    save_dir=save_dir,
                                    raw_save_dir=raw_save_dir,

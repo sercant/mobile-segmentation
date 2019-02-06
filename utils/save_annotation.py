@@ -48,7 +48,7 @@ def save_annotation(label,
         colored_label = label
 
     pil_image = img.fromarray(colored_label.astype(dtype=np.uint8))
-    if filename is not str:
+    if not isinstance(filename, str):
         filename = filename.decode('utf-8')
     with tf.gfile.Open("{}/{}.png".format(save_dir, filename), mode='wb') as f:
         pil_image.save(f, 'PNG')

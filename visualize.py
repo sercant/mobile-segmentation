@@ -163,6 +163,7 @@ def _process_batch(sess, original_images, semantic_predictions, image_names,
         image_width = np.squeeze(image_widths[i])
         original_image = np.squeeze(original_images[i])
         semantic_prediction = np.squeeze(semantic_predictions[i])
+        label = np.squeeze(labels[i])
         crop_semantic_prediction = semantic_prediction[:image_height, :image_width]
 
         # Save image.
@@ -177,9 +178,9 @@ def _process_batch(sess, original_images, semantic_predictions, image_names,
             colormap_type=FLAGS.colormap_type)
 
         # Save groundtruth.
-        if labels:
+        if label is not None:
             save_annotation.save_annotation(
-                labels, save_dir,
+                label, save_dir,
                 _GROUNDTRUTH_FORMAT % (image_id_offset + i), add_colormap=True,
                 colormap_type=FLAGS.colormap_type)
 

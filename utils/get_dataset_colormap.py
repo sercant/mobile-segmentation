@@ -230,6 +230,7 @@ def create_cityscapes_label_colormap():
         [0, 80, 100],
         [0, 0, 230],
         [119, 11, 32],
+        [0, 0, 0],
     ])
 
 

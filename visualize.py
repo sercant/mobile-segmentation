@@ -272,7 +272,7 @@ def main(unused_argv):
                                        align_corners=True), 3)
 
         labels = samples[common.LABEL]
-        labels = tf.where(tf.equal(labels, dataset.ignore_label), tf.zeros_like(labels), labels)
+        labels = tf.where(tf.equal(labels, dataset.ignore_label), tf.ones_like(labels) * 20, labels)
 
         tf.train.get_or_create_global_step()
         saver = tf.train.Saver(slim.get_variables_to_restore())

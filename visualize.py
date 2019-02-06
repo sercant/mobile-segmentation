@@ -271,6 +271,9 @@ def main(unused_argv):
                                        method=tf.image.ResizeMethod.NEAREST_NEIGHBOR,
                                        align_corners=True), 3)
 
+        labels = samples[common.LABEL]
+        labels = tf.where(tf.equal(labels, dataset.ignore_label), tf.zeros_like(labels), labels)
+
         tf.train.get_or_create_global_step()
         saver = tf.train.Saver(slim.get_variables_to_restore())
         sv = tf.train.Supervisor(graph=g,
@@ -312,7 +315,7 @@ def main(unused_argv):
                                    image_names=samples[common.IMAGE_NAME],
                                    image_heights=samples[common.HEIGHT],
                                    image_widths=samples[common.WIDTH],
-                                   labels=samples[common.LABEL],
+                                   labels=labels,
                                    image_id_offset=image_id_offset,
                                    save_dir=save_dir,
                                    raw_save_dir=raw_save_dir,

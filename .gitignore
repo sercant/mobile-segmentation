@@ -119,3 +119,6 @@ data
 **/*.pyc
 
 checkpoints
+vis/*
+dataset/cityscapes/*
+.idea/*

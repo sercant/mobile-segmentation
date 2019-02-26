@@ -1,17 +1,4 @@
-# Copyright 2018 The TensorFlow Authors All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
+
 """Provides flags that are common to scripts.
 
 Common flags from train/eval/vis/export_model.py are collected in this script.
@@ -41,11 +28,11 @@ flags.DEFINE_integer('logits_kernel_size', 1,
                      'The kernel size for the convolutional kernel that '
                      'generates logits.')
 
-# When using 'mobilent_v2', we set atrous_rates = decoder_output_stride = None.
+# When using 'mobilenet_v2', we set atrous_rates = decoder_output_stride = None.
 # When using 'xception_65' or 'resnet_v1' model variants, we set
 # atrous_rates = [6, 12, 18] (output stride 16) and decoder_output_stride = 4.
 # See core/feature_extractor.py for supported model variants.
-flags.DEFINE_string('model_variant', 'mobilenet_v2', 'DeepLab model variant.')
+flags.DEFINE_string('model_variant', 'shufflenet_v2', 'DeepLab model variant.')
 
 flags.DEFINE_multi_float('image_pyramid', None,
                          'Input scales for multi-scale feature extraction.')

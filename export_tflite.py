@@ -1,19 +1,31 @@
 
 import tensorflow as tf
-import utils.load_env
 import common
 import model
-
-slim = tf.contrib.slim
 
 flags = tf.app.flags
 
 FLAGS = flags.FLAGS
 
+INPUT_TENSOR_NAME = 'input_0'
+INPUT_SIZE = [1, 225, 225, 3]
+NUMBER_OF_CLASSES = 19
+
+MODEL_VARIANT = 'shufflenet_v2'
+USE_DPC = True
+CHECKPOINT_PATH = './logs'
+
+OUT_PATH_TFLITE = 'dist/tflite_graph.tflite'
+OUT_PATH_FROZEN_GRAPH = 'dist/tensorflow_graph.pb'
+
 if __name__ == '__main__':
-    input_tensor_name = 'input_0'
-    input_size = [1, 224, 224, 3]
-    outputs_to_num_classes = {common.OUTPUT_TYPE: 4}
+    input_tensor_name = INPUT_TENSOR_NAME
+    input_size = INPUT_SIZE
+    outputs_to_num_classes = {common.OUTPUT_TYPE: NUMBER_OF_CLASSES}
+
+    FLAGS.model_variant = MODEL_VARIANT
+    FLAGS.dense_prediction_cell_json = './core/dense_prediction_cell_branch5_top1_cityscapes.json' if USE_DPC else ''
+    chkpt_path = CHECKPOINT_PATH
 
     model_options = common.ModelOptions(
         outputs_to_num_classes=outputs_to_num_classes,
@@ -34,8 +46,9 @@ if __name__ == '__main__':
             output_tensor_name = predictions.name.split(':')[0]
 
             sess.run(tf.global_variables_initializer())
-            saver = tf.train.Saver()
-            saver.restore(sess, tf.train.latest_checkpoint('./logs'))
+            if chkpt_path:
+                saver = tf.train.Saver()
+                saver.restore(sess, tf.train.latest_checkpoint(chkpt_path))
 
             constant_graph = tf.graph_util.convert_variables_to_constants(
                 sess,  # The session is used to retrieve the weights
@@ -44,13 +57,15 @@ if __name__ == '__main__':
                 # The output node names are used to select the usefull nodes
                 [output_tensor_name]
             )
-            with tf.gfile.GFile('dist/tensorflow_graph.pb', "wb") as f:
+            with tf.gfile.GFile(OUT_PATH_FROZEN_GRAPH, "wb") as f:
                 f.write(constant_graph.SerializeToString())
 
             with tf.Graph().as_default() as graph:
                 transforms = [
-                    'strip_unused_nodes(type=int,shape=\"1,224,224,3\")',
+                    'strip_unused_nodes(type=float,shape=\"{}\")'.format(
+                        ','.join(['{}'.format(s) for s in input_size])),
                     'remove_nodes(op=Identity, op=CheckNumerics)',
+                    # 'flatten_atrous_conv',
                     'fold_constants(ignore_errors=true)',
                     'fold_batch_norms',
                     'fold_old_batch_norms'
@@ -65,10 +80,9 @@ if __name__ == '__main__':
 
                 x = graph.get_tensor_by_name('{}:0'.format(input_tensor_name))
                 y = graph.get_tensor_by_name('{}:0'.format(output_tensor_name))
-                # y.set_shape([1, 224, 224, 3])
 
             with tf.Session(graph=graph) as sess:
                 converter = tf.contrib.lite.TFLiteConverter.from_session(sess, [
                     x], [y])
                 tflite_model = converter.convert()
-                open("dist/tflite_graph.tflite", "wb").write(tflite_model)
+                open(OUT_PATH_TFLITE, "wb").write(tflite_model)

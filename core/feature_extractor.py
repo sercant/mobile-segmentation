@@ -1,25 +1,8 @@
-# Copyright 2018 The TensorFlow Authors All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
 
 """Extracts features for different models."""
 import functools
 import tensorflow as tf
 
-# from core import resnet_v1_beta
-# from core import xception
-# from tensorflow.contrib.slim.nets import resnet_utils
 from nets.mobilenet import mobilenet_v2
 from core import shufflenet_v2
 
@@ -103,38 +86,8 @@ networks_to_feature_maps = {
         DECODER_END_POINTS: ['layer_4/depthwise_output'],
     },
     'shufflenet_v2': {
-        DECODER_END_POINTS: ['Conv5/Relu'], # TODO fix
+        DECODER_END_POINTS: ['Conv5/Relu'],  # TODO fix not used right now
     }
-    # 'resnet_v1_50': {
-    #     DECODER_END_POINTS: ['block1/unit_2/bottleneck_v1/conv3'],
-    # },
-    # 'resnet_v1_50_beta': {
-    #     DECODER_END_POINTS: ['block1/unit_2/bottleneck_v1/conv3'],
-    # },
-    # 'resnet_v1_101': {
-    #     DECODER_END_POINTS: ['block1/unit_2/bottleneck_v1/conv3'],
-    # },
-    # 'resnet_v1_101_beta': {
-    #     DECODER_END_POINTS: ['block1/unit_2/bottleneck_v1/conv3'],
-    # },
-    # 'xception_41': {
-    #     DECODER_END_POINTS: [
-    #         'entry_flow/block2/unit_1/xception_module/'
-    #         'separable_conv2_pointwise',
-    #     ],
-    # },
-    # 'xception_65': {
-    #     DECODER_END_POINTS: [
-    #         'entry_flow/block2/unit_1/xception_module/'
-    #         'separable_conv2_pointwise',
-    #     ],
-    # },
-    # 'xception_71': {
-    #     DECODER_END_POINTS: [
-    #         'entry_flow/block3/unit_1/xception_module/'
-    #         'separable_conv2_pointwise',
-    #     ],
-    # },
 }
 
 # A map from feature extractor name to the network name scope used in the
@@ -142,13 +95,6 @@ networks_to_feature_maps = {
 name_scope = {
     'mobilenet_v2': 'MobilenetV2',
     'shufflenet_v2': 'ShuffleNetV2',
-    # 'resnet_v1_50': 'resnet_v1_50',
-    # 'resnet_v1_50_beta': 'resnet_v1_50',
-    # 'resnet_v1_101': 'resnet_v1_101',
-    # 'resnet_v1_101_beta': 'resnet_v1_101',
-    # 'xception_41': 'xception_41',
-    # 'xception_65': 'xception_65',
-    # 'xception_71': 'xception_71',
 }
 
 # Mean pixel value.
@@ -169,13 +115,6 @@ def _preprocess_zero_mean_unit_range(inputs):
 _PREPROCESS_FN = {
     'mobilenet_v2': _preprocess_zero_mean_unit_range,
     'shufflenet_v2': _preprocess_zero_mean_unit_range,
-    # 'resnet_v1_50': _preprocess_subtract_imagenet_mean,
-    # 'resnet_v1_50_beta': _preprocess_zero_mean_unit_range,
-    # 'resnet_v1_101': _preprocess_subtract_imagenet_mean,
-    # 'resnet_v1_101_beta': _preprocess_zero_mean_unit_range,
-    # 'xception_41': _preprocess_zero_mean_unit_range,
-    # 'xception_65': _preprocess_zero_mean_unit_range,
-    # 'xception_71': _preprocess_zero_mean_unit_range,
 }
 
 
@@ -253,40 +192,6 @@ def extract_features(images,
     Raises:
       ValueError: Unrecognized model variant.
     """
-    # if 'resnet' in model_variant:
-    #     arg_scope = arg_scopes_map[model_variant](
-    #         weight_decay=weight_decay,
-    #         batch_norm_decay=0.95,
-    #         batch_norm_epsilon=1e-5,
-    #         batch_norm_scale=True)
-    #     features, end_points = get_network(
-    #         model_variant, preprocess_images, arg_scope)(
-    #             inputs=images,
-    #             num_classes=num_classes,
-    #             is_training=(is_training and fine_tune_batch_norm),
-    #             global_pool=global_pool,
-    #             output_stride=output_stride,
-    #             multi_grid=multi_grid,
-    #             reuse=reuse,
-    #             scope=name_scope[model_variant])
-    # elif 'xception' in model_variant:
-    #     arg_scope = arg_scopes_map[model_variant](
-    #         weight_decay=weight_decay,
-    #         batch_norm_decay=0.9997,
-    #         batch_norm_epsilon=1e-3,
-    #         batch_norm_scale=True,
-    #         regularize_depthwise=regularize_depthwise)
-    #     features, end_points = get_network(
-    #         model_variant, preprocess_images, arg_scope)(
-    #             inputs=images,
-    #             num_classes=num_classes,
-    #             is_training=(is_training and fine_tune_batch_norm),
-    #             global_pool=global_pool,
-    #             output_stride=output_stride,
-    #             regularize_depthwise=regularize_depthwise,
-    #             multi_grid=multi_grid,
-    #             reuse=reuse,
-    #             scope=name_scope[model_variant])
     if 'mobilenet' in model_variant:
         arg_scope = arg_scopes_map[model_variant](
             is_training=(is_training and fine_tune_batch_norm),

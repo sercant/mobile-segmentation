@@ -39,12 +39,11 @@ Alan L. Yuille (* equal contribution)
 (https://arxiv.org/abs/1412.7062)
 """
 import tensorflow as tf
+from tensorflow.contrib import slim
 from core import dense_prediction_cell
 from core import feature_extractor
 from core import utils
 
-
-slim = tf.contrib.slim
 
 LOGITS_SCOPE_NAME = 'logits'
 MERGED_LOGITS_SCOPE = 'merged_logits'

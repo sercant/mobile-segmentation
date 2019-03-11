@@ -1,10 +1,10 @@
 """Wrapper for providing semantic segmentation data."""
 
 import tensorflow as tf
+from tensorflow.contrib import slim
 import common
 import input_preprocess
 
-slim = tf.contrib.slim
 
 dataset_data_provider = slim.dataset_data_provider
 

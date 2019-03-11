@@ -1,8 +1,7 @@
 
 """This script contains utility functions."""
 import tensorflow as tf
-
-slim = tf.contrib.slim
+from tensorflow.contrib import slim
 
 
 def scale_dimension(dim, scale):

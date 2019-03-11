@@ -4,10 +4,9 @@
 import six
 
 import tensorflow as tf
+from tensorflow.contrib import slim
 from core import preprocess_utils
 from utils.loss import lovasz_softmax
-
-slim = tf.contrib.slim
 
 
 def add_softmax_cross_entropy_loss_for_each_scale(scales_to_logits,

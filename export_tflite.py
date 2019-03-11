@@ -9,10 +9,11 @@ FLAGS = flags.FLAGS
 
 INPUT_TENSOR_NAME = 'input_0'
 INPUT_SIZE = [1, 225, 225, 3]
-NUMBER_OF_CLASSES = 19
+NUMBER_OF_CLASSES = 4
+OUTPUT_STRIDE = 8
 
 MODEL_VARIANT = 'shufflenet_v2'
-USE_DPC = True
+USE_DPC = False
 CHECKPOINT_PATH = './logs'
 
 OUT_PATH_TFLITE = 'dist/tflite_graph.tflite'
@@ -31,7 +32,7 @@ if __name__ == '__main__':
         outputs_to_num_classes=outputs_to_num_classes,
         crop_size=input_size[1:3],
         atrous_rates=None,
-        output_stride=16)
+        output_stride=OUTPUT_STRIDE)
 
     g = tf.Graph()
     with g.as_default():
@@ -41,8 +42,8 @@ if __name__ == '__main__':
             outputs_to_scales_to_logits = model.predict_labels(
                 inputs,
                 model_options=model_options)
-            predictions = tf.to_int32(
-                outputs_to_scales_to_logits[common.OUTPUT_TYPE])
+            predictions = tf.cast(
+                outputs_to_scales_to_logits[common.OUTPUT_TYPE], tf.int32)
             output_tensor_name = predictions.name.split(':')[0]
 
             sess.run(tf.global_variables_initializer())

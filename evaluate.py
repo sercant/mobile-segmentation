@@ -7,13 +7,13 @@ See model.py for more details and usage.
 import math
 import six
 import tensorflow as tf
+from tensorflow.contrib import slim
 
 import common
 import model
 from dataset import segmentation_dataset
 from utils import input_generator
 
-slim = tf.contrib.slim
 
 flags = tf.app.flags
 

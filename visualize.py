@@ -22,6 +22,7 @@ import os.path
 import time
 import numpy as np
 import tensorflow as tf
+from tensorflow.contrib import slim
 
 import common
 import model
@@ -29,7 +30,6 @@ from dataset import segmentation_dataset
 from utils import input_generator
 from utils import save_annotation
 
-slim = tf.contrib.slim
 
 flags = tf.app.flags
 

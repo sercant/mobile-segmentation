@@ -36,12 +36,8 @@ References:
 import collections
 import os.path
 import tensorflow as tf
-
-slim = tf.contrib.slim
-
-dataset = slim.dataset
-
-tfexample_decoder = slim.tfexample_decoder
+from tensorflow.contrib import slim
+from tensorflow.contrib.slim import dataset, tfexample_decoder
 
 
 _ITEMS_TO_DESCRIPTIONS = {

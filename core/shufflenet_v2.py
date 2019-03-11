@@ -1,7 +1,7 @@
 
 import tensorflow as tf
+from tensorflow.contrib import slim
 
-slim = tf.contrib.slim
 
 BATCH_NORM_MOMENTUM = 0.997
 BATCH_NORM_EPSILON = 1e-3

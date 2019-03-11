@@ -6,15 +6,15 @@ See model.py for more details and usage.
 
 import six
 import tensorflow as tf
-import common
+from tensorflow.contrib import slim
 
 from dataset import segmentation_dataset
-import model
 from utils import input_generator
 from utils import train_utils
 from deployment import model_deploy
 
-slim = tf.contrib.slim
+import model
+import common
 
 prefetch_queue = slim.prefetch_queue
 
@@ -105,7 +105,7 @@ flags.DEFINE_boolean('upsample_logits', True,
                      'Upsample logits during training.')
 
 flags.DEFINE_string('loss_function', 'sce',
-                     'Loss function to use for optimizing default=softmax_cross_entropy.')
+                    'Loss function to use for optimizing default=softmax_cross_entropy.')
 
 # Settings for fine-tuning the network.
 

@@ -2,11 +2,11 @@
 """Extracts features for different models."""
 import functools
 import tensorflow as tf
+from tensorflow.contrib import slim
 
 from nets.mobilenet import mobilenet_v2
 from core import shufflenet_v2
 
-slim = tf.contrib.slim
 
 # Default end point for MobileNetv2.
 _MOBILENET_V2_FINAL_ENDPOINT = 'layer_18'
@@ -109,7 +109,7 @@ def _preprocess_subtract_imagenet_mean(inputs):
 
 def _preprocess_zero_mean_unit_range(inputs):
     """Map image values from [0, 255] to [-1, 1]."""
-    return (2.0 / 255.0) * tf.to_float(inputs) - 1.0
+    return (2.0 / 255.0) * tf.cast(inputs, tf.float32) - 1.0
 
 
 _PREPROCESS_FN = {

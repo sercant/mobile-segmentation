@@ -2,6 +2,8 @@
 
 We present a computationally efficient approach to semantic segmentation, meanwhile achieving a high mIOU, 70.33% on Cityscapes challenge. The network proposed is capable of running real-time on mobile devices. In addition, we make our code and model weights publicly available.
 
+**Documentation work in progress.**
+
 ## Training
 
 You should add tensorflow/models/slim to your python path in order to run most of the files! (check .env file)

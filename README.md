@@ -1,8 +1,21 @@
 # An efficient solution for semantic segmentation: ShuffleNet V2 with atrous separable convolutions
 
+**Documentation work in progress.**
+
 We present a computationally efficient approach to semantic segmentation, meanwhile achieving a high mIOU, 70.33% on Cityscapes challenge. The network proposed is capable of running real-time on mobile devices. In addition, we make our code and model weights publicly available.
 
-**Documentation work in progress.**
+Pre-print paper: [https://arxiv.org/abs/1902.07476](https://arxiv.org/abs/1902.07476)
+
+If you find the code useful for your research, please consider citing us:
+
+```tex
+@article{turkmen2019efficient,
+  title={An efficient solution for semantic segmentation: ShuffleNet V2 with atrous separable convolutions},
+  author={T{\"u}rkmen, Sercan and Heikkil{\"a}, Janne},
+  journal={arXiv preprint arXiv:1902.07476},
+  year={2019}
+}
+```
 
 ## Training
 

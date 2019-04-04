@@ -20,12 +20,16 @@ If you find the code useful for your research, please consider citing us:
 1. Add [`tensorflow/models/slim`][3] to your python path in order to run most of the scripts! (check .env file)
 2. Prepare dataset. Example scripts and code is available under the `dataset` folder. The dataset should be in `tfrecord` format.
 
-## Pre-trained models
+## Model zoo
 
 | Checkpoint name                         | Eval OS | Eval scales | Left-right Flip |    mIOU     | File Size |
 | --------------------------------------- | :-----: | :---------: | :-------------: | :---------: | --------: |
 | [shufflenetv2_basic_cityscapes_67_7][1] |   16    |   \[1.0\]   |       No        | 67.7% (val) |     4.9MB |
 | [shufflenetv2_dpc_cityscapes_71_3][2]   |   16    |   \[1.0\]   |       No        | 71.3% (val) |     6.3MB |
+
+## Training
+
+To learn more about the available flags you can check `common.py` and the specific script that you are trying to run (e.g. `train.py`).
 
 ### Example training configuration
 

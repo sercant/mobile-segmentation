@@ -9,13 +9,32 @@ from core import preprocess_utils
 from utils.loss import lovasz_softmax
 
 
-def add_softmax_cross_entropy_loss_for_each_scale(scales_to_logits,
-                                                  labels,
-                                                  num_classes,
-                                                  ignore_label,
-                                                  loss_weight=1.0,
-                                                  upsample_logits=True,
-                                                  scope=None):
+def _prep_logits(logits, labels, upsample_logits):
+    if upsample_logits:
+        # Label is not downsampled, and instead we upsample logits.
+        logits = tf.image.resize_bilinear(
+            logits,
+            preprocess_utils.resolve_shape(labels, 4)[1:3],
+            align_corners=True)
+        scaled_labels = labels
+    else:
+        # Label is downsampled to the same size as logits.
+        scaled_labels = tf.image.resize_nearest_neighbor(
+            labels,
+            preprocess_utils.resolve_shape(logits, 4)[1:3],
+            align_corners=True)
+
+    return logits, scaled_labels
+
+
+def add_loss_for_each_scale(scales_to_logits,
+                            labels,
+                            num_classes,
+                            ignore_label,
+                            loss_weight=1.0,
+                            upsample_logits=True,
+                            scope=None,
+                            loss_function='sce'):
     """Adds softmax cross entropy loss for logits of each scale.
 
     Args:
@@ -24,79 +43,48 @@ def add_softmax_cross_entropy_loss_for_each_scale(scales_to_logits,
       labels: Groundtruth labels with shape [batch, image_height, image_width, 1].
       num_classes: Integer, number of target classes.
       ignore_label: Integer, label to ignore.
-      loss_weight: Float, loss weight.
+      loss_weight: Float, loss weight only used in loss_function sce
       upsample_logits: Boolean, upsample logits or not.
       scope: String, the scope for the loss.
+      loss_function: String, Loss type to use (default=sce)
+        sce=softmax_cress_entropy,
+        lovasz_present=lovasz softmax present classes,
+        lovasz_all=lovasz softmax all classes,
+
 
     Raises:
       ValueError: Label or logits is None.
     """
     if labels is None:
         raise ValueError('No label for softmax cross entropy loss.')
+    if loss_function is None:
+        loss_function = 'sce'
 
     for scale, logits in six.iteritems(scales_to_logits):
         loss_scope = None
         if scope:
             loss_scope = '%s_%s' % (scope, scale)
 
-        if upsample_logits:
-            # Label is not downsampled, and instead we upsample logits.
-            logits = tf.image.resize_bilinear(
-                logits,
-                preprocess_utils.resolve_shape(labels, 4)[1:3],
-                align_corners=True)
-            scaled_labels = labels
+        logits, scaled_labels = _prep_logits(logits, labels, upsample_logits)
+
+        if loss_function == 'sce':
+            scaled_labels = tf.reshape(scaled_labels, shape=[-1])
+            not_ignore_mask = tf.to_float(tf.not_equal(scaled_labels,
+                                                       ignore_label)) * loss_weight
+            one_hot_labels = slim.one_hot_encoding(
+                scaled_labels, num_classes, on_value=1.0, off_value=0.0)
+            tf.losses.softmax_cross_entropy(
+                one_hot_labels,
+                tf.reshape(logits, shape=[-1, num_classes]),
+                weights=not_ignore_mask,
+                scope=loss_scope)
+        elif 'lovasz' in loss_function:
+            classes_param = 'all' if 'all' in loss_function else 'present'
+            logits = tf.nn.softmax(logits)
+            tf.losses.add_loss(lovasz_softmax(
+                logits, scaled_labels, ignore=ignore_label, classes=classes_param))
         else:
-            # Label is downsampled to the same size as logits.
-            scaled_labels = tf.image.resize_nearest_neighbor(
-                labels,
-                preprocess_utils.resolve_shape(logits, 4)[1:3],
-                align_corners=True)
-
-        scaled_labels = tf.reshape(scaled_labels, shape=[-1])
-        not_ignore_mask = tf.to_float(tf.not_equal(scaled_labels,
-                                                   ignore_label)) * loss_weight
-        one_hot_labels = slim.one_hot_encoding(
-            scaled_labels, num_classes, on_value=1.0, off_value=0.0)
-        tf.losses.softmax_cross_entropy(
-            one_hot_labels,
-            tf.reshape(logits, shape=[-1, num_classes]),
-            weights=not_ignore_mask,
-            scope=loss_scope)
-
-
-def add_lovasz_softmax_loss_for_each_scale(scales_to_logits,
-                                           labels,
-                                           num_classes,
-                                           ignore_label,
-                                           loss_weight=1.0,
-                                           upsample_logits=True,
-                                           scope=None):
-
-    if labels is None:
-        raise ValueError('No label for lovasz softmax loss.')
-
-    for scale, logits in six.iteritems(scales_to_logits):
-        loss_scope = None
-        if scope:
-            loss_scope = '%s_%s' % (scope, scale)
-
-        if upsample_logits:
-            # Label is not downsampled, and instead we upsample logits.
-            logits = tf.image.resize_bilinear(
-                logits,
-                preprocess_utils.resolve_shape(labels, 4)[1:3],
-                align_corners=True)
-            scaled_labels = labels
-        else:
-            # Label is downsampled to the same size as logits.
-            scaled_labels = tf.image.resize_nearest_neighbor(
-                labels,
-                preprocess_utils.resolve_shape(logits, 4)[1:3],
-                align_corners=True)
-        logits = tf.nn.softmax(logits)
-        tf.losses.add_loss(lovasz_softmax(
-            logits, scaled_labels, ignore=ignore_label, classes='present'))
+            raise ValueError('loss_function not supported.')
 
 
 def get_model_init_fn(train_logdir,

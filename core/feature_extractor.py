@@ -55,26 +55,12 @@ def _mobilenet_v2(net,
 networks_map = {
     'mobilenet_v2': _mobilenet_v2,
     'shufflenet_v2': shufflenet_v2.shufflenet_base,
-    # 'resnet_v1_50': resnet_v1_beta.resnet_v1_50,
-    # 'resnet_v1_50_beta': resnet_v1_beta.resnet_v1_50_beta,
-    # 'resnet_v1_101': resnet_v1_beta.resnet_v1_101,
-    # 'resnet_v1_101_beta': resnet_v1_beta.resnet_v1_101_beta,
-    # 'xception_41': xception.xception_41,
-    # 'xception_65': xception.xception_65,
-    # 'xception_71': xception.xception_71,
 }
 
 # A map from network name to network arg scope.
 arg_scopes_map = {
     'mobilenet_v2': mobilenet_v2.training_scope,
     'shufflenet_v2': shufflenet_v2.training_scope,
-    # 'resnet_v1_50': resnet_utils.resnet_arg_scope,
-    # 'resnet_v1_50_beta': resnet_utils.resnet_arg_scope,
-    # 'resnet_v1_101': resnet_utils.resnet_arg_scope,
-    # 'resnet_v1_101_beta': resnet_utils.resnet_arg_scope,
-    # 'xception_41': xception.xception_arg_scope,
-    # 'xception_65': xception.xception_arg_scope,
-    # 'xception_71': xception.xception_arg_scope,
 }
 
 # Names for end point features.
@@ -175,7 +161,7 @@ def extract_features(images,
         depthwise convolution weights.
       preprocess_images: Performs preprocessing on images or not. Defaults to
         True. Set to False if preprocessing will be done by other functions. We
-        supprot two types of preprocessing: (1) Mean pixel substraction and (2)
+        support two types of preprocessing: (1) Mean pixel substraction and (2)
         Pixel values normalization to be [-1, 1].
       num_classes: Number of classes for image classification task. Defaults
         to None for dense prediction tasks.

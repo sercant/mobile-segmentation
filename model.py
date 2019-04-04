@@ -1,42 +1,10 @@
 
-r"""Provides DeepLab model definition and helper functions.
+r"""Provides network model definition and helper functions.
 
-DeepLab is a deep learning system for semantic image segmentation with
-the following features:
-
-(1) Atrous convolution to explicitly control the resolution at which
-feature responses are computed within Deep Convolutional Neural Networks.
-
-(2) Atrous spatial pyramid pooling (ASPP) to robustly segment objects at
-multiple scales with filters at multiple sampling rates and effective
-fields-of-views.
-
-(3) ASPP module augmented with image-level feature and batch normalization.
-
-(4) A simple yet effective decoder module to recover the object boundaries.
-
-See the following papers for more details:
-
-"Encoder-Decoder with Atrous Separable Convolution for Semantic Image
-Segmentation"
-Liang-Chieh Chen, Yukun Zhu, George Papandreou, Florian Schroff, Hartwig Adam.
-(https://arxiv.org/abs/1802.02611)
-
-"Rethinking Atrous Convolution for Semantic Image Segmentation,"
-Liang-Chieh Chen, George Papandreou, Florian Schroff, Hartwig Adam
-(https://arxiv.org/abs/1706.05587)
-
-"DeepLab: Semantic Image Segmentation with Deep Convolutional Nets,
-Atrous Convolution, and Fully Connected CRFs",
-Liang-Chieh Chen*, George Papandreou*, Iasonas Kokkinos, Kevin Murphy,
-Alan L Yuille (* equal contribution)
-(https://arxiv.org/abs/1606.00915)
-
-"Semantic Image Segmentation with Deep Convolutional Nets and Fully Connected
-CRFs"
-Liang-Chieh Chen*, George Papandreou*, Iasonas Kokkinos, Kevin Murphy,
-Alan L. Yuille (* equal contribution)
-(https://arxiv.org/abs/1412.7062)
+"An efficient solution for semantic segmentation: ShuffleNet V2 with atrous separable convolutions.",
+Türkmen, Sercan, and Janne Heikkilä.
+arXiv preprint arXiv:1902.07476 (2019).
+(https://arxiv.org/abs/1902.07476)
 """
 import tensorflow as tf
 from tensorflow.contrib import slim

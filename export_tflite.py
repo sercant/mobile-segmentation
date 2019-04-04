@@ -9,15 +9,15 @@ FLAGS = flags.FLAGS
 
 INPUT_TENSOR_NAME = 'input_0'
 INPUT_SIZE = [1, 225, 225, 3]
-NUMBER_OF_CLASSES = 4
+NUMBER_OF_CLASSES = 19
 OUTPUT_STRIDE = 16
 
 MODEL_VARIANT = 'shufflenet_v2'
-USE_DPC = False
-CHECKPOINT_PATH = './logs'
+USE_DPC = True
+CHECKPOINT_PATH = './checkpoints/cityscapes/dpc'
 
-OUT_PATH_TFLITE = 'dist/tflite_graph.tflite'
-OUT_PATH_FROZEN_GRAPH = 'dist/tensorflow_graph.pb'
+OUT_PATH_TFLITE = CHECKPOINT_PATH + '/tflite_graph.tflite'
+OUT_PATH_FROZEN_GRAPH = CHECKPOINT_PATH + '/frozen_graph.pb'
 
 if __name__ == '__main__':
     input_tensor_name = INPUT_TENSOR_NAME
@@ -87,3 +87,12 @@ if __name__ == '__main__':
                     x], [y])
                 tflite_model = converter.convert()
                 open(OUT_PATH_TFLITE, "wb").write(tflite_model)
+
+            with tf.Graph().as_default() as graph:
+                tf.import_graph_def(constant_graph, name='')
+                run_meta = tf.RunMetadata()
+                with tf.Session(graph=graph) as sess:
+                    opts = tf.profiler.ProfileOptionBuilder.float_operation()
+                    flops = tf.profiler.profile(
+                        graph, run_meta=run_meta, cmd='op', options=opts)
+                    print('FLOPS: ', flops.total_float_ops)

@@ -1,4 +1,5 @@
 
+"""Implementation of Shufflenet V2"""
 import tensorflow as tf
 from tensorflow.contrib import slim
 
@@ -53,11 +54,17 @@ def shufflenet_base(input_tensor,
         if output_stride == 0 or output_stride < 4 or (output_stride > 1 and output_stride % 2):
             raise ValueError(
                 'Output stride must be None, or >= 4 and a multiple of 2.')
+    else:
+        output_stride = 32
+
     current_stride = 1
     layer_stride = 2
     rate = 1
 
     def get_stride(layer_stride, current_stride, rate):
+        """
+        Function to adjust the output_stride using atrous rate
+        """
         if current_stride == output_stride:
             layer_stride = 1
             rate *= layer_stride

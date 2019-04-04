@@ -41,6 +41,8 @@ flags.DEFINE_string('master', '', 'BNS name of the tensorflow server')
 
 flags.DEFINE_integer('task', 0, 'The task ID.')
 
+flags.DEFINE_float('per_process_gpu_memory_fraction', None, 'The task ID.')
+
 # Settings for logging.
 
 flags.DEFINE_string('train_logdir', None,
@@ -89,12 +91,11 @@ flags.DEFINE_float('momentum', 0.9, 'The momentum value to use')
 flags.DEFINE_integer('train_batch_size', 8,
                      'The number of images in each batch during training.')
 
-# For weight_decay, use 0.00004 for MobileNet-V2 or Xcpetion model variants.
-# Use 0.0001 for ResNet model variants.
+# For weight_decay, use 0.00004 for MobileNet-V2 and ShuffleNet V2
 flags.DEFINE_float('weight_decay', 0.00004,
                    'The value of the weight decay for training.')
 
-flags.DEFINE_multi_integer('train_crop_size', [513, 513],
+flags.DEFINE_multi_integer('train_crop_size', [769, 769],
                            'Image crop size [height, width] during training.')
 
 flags.DEFINE_float('last_layer_gradient_multiplier', 1.0,
@@ -104,8 +105,10 @@ flags.DEFINE_float('last_layer_gradient_multiplier', 1.0,
 flags.DEFINE_boolean('upsample_logits', True,
                      'Upsample logits during training.')
 
-flags.DEFINE_string('loss_function', 'sce',
-                    'Loss function to use for optimizing default=softmax_cross_entropy.')
+# Lovasz softmax loss might be used for fine tuning the network after
+# training with sce.
+flags.DEFINE_enum('loss_function', 'sce', ['sce', 'lovasz_present', 'lovasz_all'],
+                  'Loss function to use for optimizing (sce, lovasz_all or lovasz_present) default=softmax_cross_entropy.')
 
 # Settings for fine-tuning the network.
 
@@ -125,7 +128,7 @@ flags.DEFINE_integer('slow_start_step', 0,
 flags.DEFINE_float('slow_start_learning_rate', 1e-4,
                    'Learning rate employed during slow start.')
 
-# Set to True if one wants to fine-tune the batch norm parameters in DeepLabv3.
+# Set to True if one wants to fine-tune the batch norm parameters.
 # Set to False and use small batch size to save GPU memory.
 flags.DEFINE_boolean('fine_tune_batch_norm', True,
                      'Fine tune the batch norm parameters or not.')
@@ -139,9 +142,7 @@ flags.DEFINE_float('max_scale_factor', 2.,
 flags.DEFINE_float('scale_factor_step_size', 0.25,
                    'Scale factor step size for data augmentation.')
 
-# For `xception_65`, use atrous_rates = [12, 24, 36] if output_stride = 8, or
-# rates = [6, 12, 18] if output_stride = 16. For `mobilenet_v2`, use None. Note
-# one could use different atrous_rates/output_stride during training/evaluation.
+# For `mobilenet_v2` and `shufflenet_v2`, use None.
 flags.DEFINE_multi_integer('atrous_rates', None,
                            'Atrous rates for atrous spatial pyramid pooling.')
 
@@ -149,7 +150,7 @@ flags.DEFINE_integer('output_stride', 16,
                      'The ratio of input to output spatial resolution.')
 
 # Dataset settings.
-flags.DEFINE_string('dataset', 'pascal_voc_seg',
+flags.DEFINE_string('dataset', 'cityscapes',
                     'Name of the segmentation dataset.')
 
 flags.DEFINE_string('train_split', 'train',
@@ -158,8 +159,8 @@ flags.DEFINE_string('train_split', 'train',
 flags.DEFINE_string('dataset_dir', None, 'Where the dataset reside.')
 
 
-def _build_deeplab(inputs_queue, outputs_to_num_classes, ignore_label):
-    """Builds a clone of DeepLab.
+def _build_network(inputs_queue, outputs_to_num_classes, ignore_label):
+    """Builds a clone of the network.
 
     Args:
       inputs_queue: A prefetch queue for images and labels.
@@ -204,17 +205,15 @@ def _build_deeplab(inputs_queue, outputs_to_num_classes, ignore_label):
         name=common.OUTPUT_TYPE)
 
     for output, num_classes in six.iteritems(outputs_to_num_classes):
-        loss_func = train_utils.add_softmax_cross_entropy_loss_for_each_scale
-        if FLAGS.loss_function in 'lovasz':
-            loss_func = train_utils.add_lovasz_softmax_loss_for_each_scale
-        loss_func(
+        train_utils.add_loss_for_each_scale(
             outputs_to_scales_to_logits[output],
             samples[common.LABEL],
             num_classes,
             ignore_label,
             loss_weight=1.0,
             upsample_logits=FLAGS.upsample_logits,
-            scope=output)
+            scope=output,
+            loss_function=FLAGS.loss_function)
 
     return outputs_to_scales_to_logits
 
@@ -267,7 +266,7 @@ def main(unused_argv):
             global_step = tf.train.get_or_create_global_step()
 
             # Define the model and create clones.
-            model_fn = _build_deeplab
+            model_fn = _build_network
             model_args = (inputs_queue, {
                 common.OUTPUT_TYPE: dataset.num_classes
             }, dataset.ignore_label)
@@ -365,7 +364,8 @@ def main(unused_argv):
         # Soft placement allows placing on CPU ops without GPU implementation.
         session_config = tf.ConfigProto(
             allow_soft_placement=True, log_device_placement=False)
-        session_config.gpu_options.per_process_gpu_memory_fraction = 0.85
+        if FLAGS.per_process_gpu_memory_fraction is not None:
+            session_config.gpu_options.per_process_gpu_memory_fraction = FLAGS.per_process_gpu_memory_fraction
 
         # Start the training.
         slim.learning.train(

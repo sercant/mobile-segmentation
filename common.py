@@ -28,10 +28,7 @@ flags.DEFINE_integer('logits_kernel_size', 1,
                      'The kernel size for the convolutional kernel that '
                      'generates logits.')
 
-# When using 'mobilenet_v2', we set atrous_rates = decoder_output_stride = None.
-# When using 'xception_65' or 'resnet_v1' model variants, we set
-# atrous_rates = [6, 12, 18] (output stride 16) and decoder_output_stride = 4.
-# See core/feature_extractor.py for supported model variants.
+# When using 'mobilenet_v2' and `shufflenet_v2`, we set atrous_rates = decoder_output_stride = None.
 flags.DEFINE_string('model_variant', 'shufflenet_v2', 'DeepLab model variant.')
 
 flags.DEFINE_multi_float('image_pyramid', None,
@@ -59,10 +56,10 @@ flags.DEFINE_multi_integer('multi_grid', None,
 
 flags.DEFINE_float('depth_multiplier', 1.0,
                    'Multiplier for the depth (number of channels) for all '
-                   'convolution ops used in MobileNet.')
+                   'convolution ops used in MobileNet and ShuffleNet.')
 
-# For `xception_65`, use decoder_output_stride = 4. For `mobilenet_v2`, use
-# decoder_output_stride = None.
+# For `mobilenet_v2` and `shufflenet_v2`, use decoder_output_stride = None.
+# TODO implemented decoder option for mobilenets
 flags.DEFINE_integer('decoder_output_stride', None,
                      'The ratio of input to output spatial resolution when '
                      'employing decoder to refine segmentation results.')

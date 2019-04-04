@@ -48,15 +48,13 @@ flags.DEFINE_string('checkpoint_dir', None, 'Directory of model checkpoints.')
 flags.DEFINE_integer('vis_batch_size', 1,
                      'The number of images in each batch during evaluation.')
 
-flags.DEFINE_multi_integer('vis_crop_size', [224, 224],
+flags.DEFINE_multi_integer('vis_crop_size', [769, 769],
                            'Crop size [height, width] for visualization.')
 
 flags.DEFINE_integer('eval_interval_secs', 60 * 5,
                      'How often (in seconds) to run evaluation.')
 
-# For `xception_65`, use atrous_rates = [12, 24, 36] if output_stride = 8, or
-# rates = [6, 12, 18] if output_stride = 16. For `mobilenet_v2`, use None. Note
-# one could use different atrous_rates/output_stride during training/evaluation.
+# For `mobilenet_v2` and `shufflenet_v2`, use None.
 flags.DEFINE_multi_integer('atrous_rates', None,
                            'Atrous rates for atrous spatial pyramid pooling.')
 
@@ -73,7 +71,7 @@ flags.DEFINE_bool('add_flipped_images', False,
 
 # Dataset settings.
 
-flags.DEFINE_string('dataset', 'ade20k',
+flags.DEFINE_string('dataset', 'cityscapes',
                     'Name of the segmentation dataset.')
 
 flags.DEFINE_string('vis_split', 'val',
@@ -81,7 +79,7 @@ flags.DEFINE_string('vis_split', 'val',
 
 flags.DEFINE_string('dataset_dir', None, 'Where the dataset reside.')
 
-flags.DEFINE_enum('colormap_type', 'pascal', ['pascal', 'cityscapes'],
+flags.DEFINE_enum('colormap_type', 'cityscapes', ['pascal', 'cityscapes'],
                   'Visualization colormap type.')
 
 flags.DEFINE_boolean('also_save_raw_predictions', False,

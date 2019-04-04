@@ -1,10 +1,8 @@
 # An efficient solution for semantic segmentation: ShuffleNet V2 with atrous separable convolutions
 
-**Documentation work in progress.**
+We present a computationally efficient approach to semantic segmentation, while achieving a high mean intersection over union (mIOU), 70.33% on Cityscapes challenge. The network proposed is capable of running real-time on mobile devices.
 
-We present a computationally efficient approach to semantic segmentation, meanwhile achieving a high mIOU, 70.33% on Cityscapes challenge. The network proposed is capable of running real-time on mobile devices. In addition, we make our code and model weights publicly available.
-
-Pre-print paper: [https://arxiv.org/abs/1902.07476](https://arxiv.org/abs/1902.07476)
+Pre-print paper: [https://arxiv.org/abs/1902.07476][4]
 
 If you find the code useful for your research, please consider citing us:
 
@@ -17,20 +15,24 @@ If you find the code useful for your research, please consider citing us:
 }
 ```
 
-## Training
+## Getting ready
 
-You should add tensorflow/models/slim to your python path in order to run most of the files! (check .env file)
+1. Add [`tensorflow/models/slim`][3] to your python path in order to run most of the scripts! (check .env file)
+2. Prepare dataset. Example scripts and code is available under the `dataset` folder. The dataset should be in `tfrecord` format.
 
-### Preparing the dataset
+## Pre-trained models
 
-Examples for preparing the database are under `dataset` folder.
+| Checkpoint name                         | Eval OS | Eval scales | Left-right Flip |    mIOU     | File Size |
+| --------------------------------------- | :-----: | :---------: | :-------------: | :---------: | --------: |
+| [shufflenetv2_basic_cityscapes_67_7][1] |   16    |   \[1.0\]   |       No        | 67.7% (val) |     4.9MB |
+| [shufflenetv2_dpc_cityscapes_71_3][2]   |   16    |   \[1.0\]   |       No        | 71.3% (val) |     6.3MB |
 
 ### Example training configuration
 
 ```sh
 python train.py \
     --model_variant=shufflenet_v2 \
-    --tf_initial_checkpoint=./checkpoints/shufflenet_v2_imagenet/model.ckpt-1661328 \
+    --tf_initial_checkpoint=./checkpoints/model.ckpt \
     --training_number_of_steps=120000 \
     --base_learning_rate=0.001 \
     --fine_tune_batch_norm=True \
@@ -39,9 +41,9 @@ python train.py \
     --train_crop_size=769 \
     --train_crop_size=769 \
     --train_batch_size=16 \
-    --dataset=coco \
+    --dataset=cityscapes \
     --train_split=train \
-    --dataset_dir=./dataset/COCO/tfrecord \
+    --dataset_dir=./dataset/cityscapes/tfrecord \
     --train_logdir=./logs \
     --loss_function=sce
 ```
@@ -51,18 +53,20 @@ python train.py \
 ```sh
 python evaluate.py \
     --model_variant=shufflenet_v2 \
-    --eval_crop_size=769 \
-    --eval_crop_size=769 \
-    --min_resize_value=768 \
-    --max_resize_value=768 \
-    --scale_factor=16 \
+    --eval_crop_size=1025 \
+    --eval_crop_size=2049 \
     --output_stride=16 \
     --eval_logdir=./logs/eval \
     --checkpoint_dir=./logs \
-    --dataset=coco \
-    --dataset_dir=./dataset/COCO/tfrecord
+    --dataset=cityscapes \
+    --dataset_dir=./dataset/cityscapes/tfrecord
 ```
 
-## Exporting TFLITE model
+## Exporting to TFLITE model
 
 `export_tflite.py` script contains several parameters at the top of the script.
+
+[1]: https://github.com/sercant/mobile-segmentation/releases/download/v0.1.0/shufflenetv2_basic_cityscapes_67_7.zip
+[2]: https://github.com/sercant/mobile-segmentation/releases/download/v0.1.0/shufflenetv2_dpc_cityscapes_71_3.zip
+[3]: https://github.com/tensorflow/models/tree/master/research/slim
+[4]: https://arxiv.org/abs/1902.07476

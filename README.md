@@ -70,7 +70,12 @@ python evaluate.py \
 
 `export_tflite.py` script contains several parameters at the top of the script.
 
+## Running on Android
+
+You can find an example script to run the this model and Tensorflow Lite interpreter for segmentation on Android in [this repository][5].
+
 [1]: https://github.com/sercant/mobile-segmentation/releases/download/v0.1.0/shufflenetv2_basic_cityscapes_67_7.zip
 [2]: https://github.com/sercant/mobile-segmentation/releases/download/v0.1.0/shufflenetv2_dpc_cityscapes_71_3.zip
 [3]: https://github.com/tensorflow/models/tree/master/research/slim
 [4]: https://arxiv.org/abs/1902.07476
+[5]: https://github.com/sercant/android-segmentation

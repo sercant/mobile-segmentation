@@ -142,7 +142,7 @@ def _crop(image, offset_height, offset_width, crop_height, crop_width):
             tf.greater_equal(original_shape[1], crop_width)),
         ['Crop size greater than the image size.'])
 
-    offsets = tf.to_int32(tf.stack([offset_height, offset_width, 0]))
+    offsets = tf.cast(tf.stack([offset_height, offset_width, 0]), tf.int32)
 
     # Use tf.slice instead of crop_to_bounding box as it accepts tensors to
     # define the crop size.
@@ -253,7 +253,7 @@ def get_random_scale(min_scale_factor, max_scale_factor, step_size):
         raise ValueError('Unexpected value of min_scale_factor.')
 
     if min_scale_factor == max_scale_factor:
-        return tf.to_float(min_scale_factor)
+        return tf.cast(min_scale_factor, tf.float32)
 
     # When step_size = 0, we sample the value uniformly from [min, max).
     if step_size == 0:
@@ -283,8 +283,8 @@ def randomly_scale_image_and_label(image, label=None, scale=1.0):
     if scale == 1.0:
         return image, label
     image_shape = tf.shape(image)
-    new_dim = tf.to_int32(tf.to_float(
-        [image_shape[0], image_shape[1]]) * scale)
+    new_dim = tf.cast(tf.cast(
+        [image_shape[0], image_shape[1]], tf.float32) * scale, tf.int32)
 
     # Need squeeze and expand_dims because image interpolation takes
     # 4D tensors as input.
@@ -376,9 +376,9 @@ def resize_to_range(image,
     """
     with tf.name_scope(scope, 'resize_to_range', [image]):
         new_tensor_list = []
-        min_size = tf.to_float(min_size)
+        min_size = tf.cast(min_size, tf.float32)
         if max_size is not None:
-            max_size = tf.to_float(max_size)
+            max_size = tf.cast(max_size, tf.float32)
             # Modify the max_size to be a multiple of factor plus 1 and make sure the
             # max dimension after resizing is no larger than max_size.
             if factor is not None:
@@ -386,14 +386,14 @@ def resize_to_range(image,
                             - factor)
 
         [orig_height, orig_width, _] = resolve_shape(image, rank=3)
-        orig_height = tf.to_float(orig_height)
-        orig_width = tf.to_float(orig_width)
+        orig_height = tf.cast(orig_height, tf.float32)
+        orig_width = tf.cast(orig_width, tf.float32)
         orig_min_size = tf.minimum(orig_height, orig_width)
 
         # Calculate the larger of the possible sizes
         large_scale_factor = min_size / orig_min_size
-        large_height = tf.to_int32(tf.ceil(orig_height * large_scale_factor))
-        large_width = tf.to_int32(tf.ceil(orig_width * large_scale_factor))
+        large_height = tf.cast(tf.ceil(orig_height * large_scale_factor), tf.int32)
+        large_width = tf.cast(tf.ceil(orig_width * large_scale_factor), tf.int32)
         large_size = tf.stack([large_height, large_width])
 
         new_size = large_size
@@ -402,12 +402,12 @@ def resize_to_range(image,
             # is too big.
             orig_max_size = tf.maximum(orig_height, orig_width)
             small_scale_factor = max_size / orig_max_size
-            small_height = tf.to_int32(
-                tf.ceil(orig_height * small_scale_factor))
-            small_width = tf.to_int32(tf.ceil(orig_width * small_scale_factor))
+            small_height = tf.cast(
+                tf.ceil(orig_height * small_scale_factor), tf.int32)
+            small_width = tf.cast(tf.ceil(orig_width * small_scale_factor), tf.int32)
             small_size = tf.stack([small_height, small_width])
             new_size = tf.cond(
-                tf.to_float(tf.reduce_max(large_size)) > max_size,
+                tf.cast(tf.reduce_max(large_size), tf.float32) > max_size,
                 lambda: small_size,
                 lambda: large_size)
         # Ensure that both output sides are multiples of factor plus one.

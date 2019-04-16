@@ -15,7 +15,7 @@ def scale_dimension(dim, scale):
       Scaled dimension.
     """
     if isinstance(dim, tf.Tensor):
-        return tf.cast((tf.to_float(dim) - 1.0) * scale + 1.0, dtype=tf.int32)
+        return tf.cast((tf.cast(dim, tf.float32) - 1.0) * scale + 1.0, dtype=tf.int32)
     else:
         return int((float(dim) - 1.0) * scale + 1.0)
 

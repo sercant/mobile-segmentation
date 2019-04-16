@@ -69,8 +69,8 @@ def add_loss_for_each_scale(scales_to_logits,
 
         if loss_function == 'sce':
             scaled_labels = tf.reshape(scaled_labels, shape=[-1])
-            not_ignore_mask = tf.to_float(tf.not_equal(scaled_labels,
-                                                       ignore_label)) * loss_weight
+            not_ignore_mask = tf.cast(tf.not_equal(
+                scaled_labels, ignore_label), tf.float32) * loss_weight
             one_hot_labels = slim.one_hot_encoding(
                 scaled_labels, num_classes, on_value=1.0, off_value=0.0)
             tf.losses.softmax_cross_entropy(

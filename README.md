@@ -17,7 +17,9 @@ If you find the code useful for your research, please consider citing us:
 
 ## Getting ready
 
-1. Add [`tensorflow/models/slim`][3] to your python path in order to run most of the scripts! (check .env file)
+1. Add [`tensorflow/models/slim`][3] to your python path in order to run most of the scripts! To do so follow these steps:
+   1. Clone or download the [`tensorflow/models/slim`][3] repository to a separate folder.
+   2. Add the path to the repository by running the following code: `export PYTHONPATH=path_to_the_cloned_folder/tensorflow_models/research/slim:${PYTHONPATH}`
 2. Prepare dataset. Example scripts and code is available under the `dataset` folder. The dataset should be in `tfrecord` format.
 
 ## Model zoo

@@ -48,7 +48,7 @@ flags.DEFINE_string('checkpoint_dir', None, 'Directory of model checkpoints.')
 flags.DEFINE_integer('vis_batch_size', 1,
                      'The number of images in each batch during evaluation.')
 
-flags.DEFINE_multi_integer('vis_crop_size', [769, 769],
+flags.DEFINE_multi_integer('vis_crop_size', [1025, 2049],
                            'Crop size [height, width] for visualization.')
 
 flags.DEFINE_integer('eval_interval_secs', 60 * 5,
@@ -270,7 +270,7 @@ def main(unused_argv):
                                        align_corners=True), 3)
 
         labels = samples[common.LABEL]
-        labels = tf.where(tf.equal(labels, dataset.ignore_label), tf.ones_like(labels) * 20, labels)
+        labels = tf.where(tf.equal(labels, dataset.ignore_label), tf.ones_like(labels) * 19, labels)
 
         tf.train.get_or_create_global_step()
         saver = tf.train.Saver(slim.get_variables_to_restore())

@@ -23,7 +23,7 @@ _PASCAL = 'pascal'
 # Max number of entries in the colormap for each dataset.
 _DATASET_MAX_ENTRIES = {
     _ADE20K: 151,
-    _CITYSCAPES: 19,
+    _CITYSCAPES: 20, # 18 + 1 background + 1 for groundtruth ignore label
     _MAPILLARY_VISTAS: 66,
     _PASCAL: 256,
 }

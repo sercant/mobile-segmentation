@@ -7,11 +7,19 @@ Pre-print paper: [https://arxiv.org/abs/1902.07476][4]
 If you find the code useful for your research, please consider citing us:
 
 ```tex
-@article{turkmen2019efficient,
-  title={An efficient solution for semantic segmentation: ShuffleNet V2 with atrous separable convolutions},
-  author={T{\"u}rkmen, Sercan and Heikkil{\"a}, Janne},
-  journal={arXiv preprint arXiv:1902.07476},
-  year={2019}
+@InProceedings{turkmen2019efficient,
+  author    = {Sercan T{\"u}rkmen and Janne Heikkil{\"a}},
+  title     = {An Efficient Solution for Semantic Segmentation: {ShuffleNet} V2 with Atrous Separable Convolutions},
+  booktitle = {Image Analysis},
+  year      = {2019},
+  editor    = {Michael Felsberg and Per-Erik Forss{\'e}n and Ida-Maria Sintorn and Jonas Unger},
+  volume    = {11482},
+  pages     = {41--53},
+  address   = {Cham},
+  publisher = {Springer International Publishing},
+  doi       = {10.1007/978-3-030-20205-7_4},
+  isbn      = {978-3-030-20205-7},
+  url       = {http://dx.doi.org/10.1007/978-3-030-20205-7_4},
 }
 ```
 
@@ -24,10 +32,12 @@ If you find the code useful for your research, please consider citing us:
 
 ## Model zoo
 
-| Checkpoint name                         | Eval OS | Eval scales | Left-right Flip |    mIOU     | File Size |
-| --------------------------------------- | :-----: | :---------: | :-------------: | :---------: | --------: |
-| [shufflenetv2_basic_cityscapes_67_7][1] |   16    |   \[1.0\]   |       No        | 67.7% (val) |     4.9MB |
-| [shufflenetv2_dpc_cityscapes_71_3][2]   |   16    |   \[1.0\]   |       No        | 71.3% (val) |     6.3MB |
+| Checkpoint name                         | Trained on                                          | Eval OS | Eval scales | Left-right Flip |    mIOU     | File Size |
+| --------------------------------------- | --------------------------------------------------- | :-----: | :---------: | :-------------: | :---------: | --------: |
+| [shufflenetv2_basic_cityscapes_67_7][1] | MS COCO 2017* + Cityscapes coarse + Cityscapes fine |   16    |   \[1.0\]   |       No        | 67.7% (val) |     4.9MB |
+| [shufflenetv2_dpc_cityscapes_71_3][2]   | MS COCO 2017* + Cityscapes coarse + Cityscapes fine |   16    |   \[1.0\]   |       No        | 71.3% (val) |     6.3MB |
+
+\* Filtered to include only `person`, `car`, `truck`, `bus`, `train`, `motorcycle`, `bicycle`, `stop sign`, `parking meter` classes and samples that contain over 1000 annotated pixels.
 
 ## Training
 
@@ -78,6 +88,6 @@ You can find an example script to run the this model and Tensorflow Lite interpr
 
 [1]: https://github.com/sercant/mobile-segmentation/releases/download/v0.1.0/shufflenetv2_basic_cityscapes_67_7.zip
 [2]: https://github.com/sercant/mobile-segmentation/releases/download/v0.1.0/shufflenetv2_dpc_cityscapes_71_3.zip
-[3]: https://github.com/tensorflow/models/tree/master/research/slim
+[3]: https://github.com/tensorflow/models/tree/v1.13.0/research/slim
 [4]: https://arxiv.org/abs/1902.07476
 [5]: https://github.com/sercant/android-segmentation

@@ -2,7 +2,7 @@
 
 We present a computationally efficient approach to semantic segmentation, while achieving a high mean intersection over union (mIOU), 70.33% on Cityscapes challenge. The network proposed is capable of running real-time on mobile devices.
 
-Pre-print paper: [https://arxiv.org/abs/1902.07476][4]
+Paper: [10.1007/978-3-030-20205-7_4][4]
 
 If you find the code useful for your research, please consider citing us:
 
@@ -32,10 +32,10 @@ If you find the code useful for your research, please consider citing us:
 
 ## Model zoo
 
-| Checkpoint name                         | Trained on                                          | Eval OS | Eval scales | Left-right Flip |    mIOU     | File Size |
-| --------------------------------------- | --------------------------------------------------- | :-----: | :---------: | :-------------: | :---------: | --------: |
-| [shufflenetv2_basic_cityscapes_67_7][1] | MS COCO 2017* + Cityscapes coarse + Cityscapes fine |   16    |   \[1.0\]   |       No        | 67.7% (val) |     4.9MB |
-| [shufflenetv2_dpc_cityscapes_71_3][2]   | MS COCO 2017* + Cityscapes coarse + Cityscapes fine |   16    |   \[1.0\]   |       No        | 71.3% (val) |     6.3MB |
+| Checkpoint name                         | Trained on                                          | Uses DPC | Eval OS | Eval scales | Left-right Flip |    mIOU     | File Size |
+| --------------------------------------- | --------------------------------------------------- | :--: | :-----: | :---------: | :-------------: | :---------: | --------: |
+| [shufflenetv2_basic_cityscapes_67_7][1] | MS COCO 2017* + Cityscapes coarse + Cityscapes fine | No |  16    |   \[1.0\]   |       No        | 67.7% (val) |     4.9MB |
+| [shufflenetv2_dpc_cityscapes_71_3][2]   | MS COCO 2017* + Cityscapes coarse + Cityscapes fine | Yes |  16    |   \[1.0\]   |       No        | 71.3% (val) |     6.3MB |
 
 \* Filtered to include only `person`, `car`, `truck`, `bus`, `train`, `motorcycle`, `bicycle`, `stop sign`, `parking meter` classes and samples that contain over 1000 annotated pixels.
 
@@ -64,6 +64,10 @@ python train.py \
     --loss_function=sce
 ```
 
+**Important:** To use DPC architecture in your model, you should also set this parameter:
+
+    --dense_prediction_cell_json=./core/dense_prediction_cell_branch5_top1_cityscapes.json
+
 ### Example evaluation configuration
 
 ```sh
@@ -78,6 +82,10 @@ python evaluate.py \
     --dataset_dir=./dataset/cityscapes/tfrecord
 ```
 
+**Important:** If you are trying to evaluate a checkpoint that uses DPC architecture, you should also set this parameter:  
+
+    --dense_prediction_cell_json=./core/dense_prediction_cell_branch5_top1_cityscapes.json
+
 ## Exporting to TFLITE model
 
 `export_tflite.py` script contains several parameters at the top of the script.
@@ -89,5 +97,5 @@ You can find an example script to run the this model and Tensorflow Lite interpr
 [1]: https://github.com/sercant/mobile-segmentation/releases/download/v0.1.0/shufflenetv2_basic_cityscapes_67_7.zip
 [2]: https://github.com/sercant/mobile-segmentation/releases/download/v0.1.0/shufflenetv2_dpc_cityscapes_71_3.zip
 [3]: https://github.com/tensorflow/models/tree/v1.13.0/research/slim
-[4]: https://arxiv.org/abs/1902.07476
+[4]: https://doi.org/10.1007/978-3-030-20205-7_4
 [5]: https://github.com/sercant/android-segmentation

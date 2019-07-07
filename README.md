@@ -92,10 +92,11 @@ python evaluate.py \
 
 ## Running on Android
 
-You can find an example script to run the this model and Tensorflow Lite interpreter for segmentation on Android in [this repository][5].
+You can find an example script to run the this model and Tensorflow Lite interpreter for segmentation on Android in [this repository][5] and also an example application in [sercant/android-segmentation-app][6].
 
 [1]: https://github.com/sercant/mobile-segmentation/releases/download/v0.1.0/shufflenetv2_basic_cityscapes_67_7.zip
 [2]: https://github.com/sercant/mobile-segmentation/releases/download/v0.1.0/shufflenetv2_dpc_cityscapes_71_3.zip
 [3]: https://github.com/tensorflow/models/tree/v1.13.0/research/slim
 [4]: https://doi.org/10.1007/978-3-030-20205-7_4
 [5]: https://github.com/sercant/android-segmentation
+[6]: https://github.com/sercant/android-segmentation-app

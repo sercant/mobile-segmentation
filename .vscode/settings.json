@@ -1,0 +1,7 @@
+{
+    "python.pythonPath": "venv/bin/python",
+    "python.jediEnabled": false,
+    "python.analysis.downloadChannel": "beta",
+    "python.linting.pylintEnabled": true,
+    "python.dataScience.jupyterServerURI": "local"
+}

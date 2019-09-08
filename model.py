@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow.keras as keras
 from tensorflow.keras import layers
-from feature_extractor import shufflenet_v2_base
+from shufflenet_v2 import shufflenet_v2_base
 from encoder_heads import dpc_head, basic_head
 
 

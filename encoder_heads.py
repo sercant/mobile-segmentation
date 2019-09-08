@@ -3,11 +3,7 @@ import tensorflow.keras as keras
 from tensorflow.keras import layers
 from tensorflow.keras.layers import AveragePooling2D, BatchNormalization, Conv2D, Concatenate
 
-batch_norm_params = {
-    'decay': 0.9997,
-    'epsilon': 1e-5,
-    # 'scale': True,
-}
+batch_norm_params = {'decay': 0.9997, 'epsilon': 1e-5}
 WEIGHT_DECAY = 0.00004
 
 

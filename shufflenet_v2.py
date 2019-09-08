@@ -1,45 +1,29 @@
-#%%
 import tensorflow as tf
-from tensorflow.keras import layers
+from tensorflow import keras
+from tensorflow.keras.layers import (Conv2D, BatchNormalization, MaxPool2D,
+                                     DepthwiseConv2D, Concatenate, Reshape,
+                                     Permute, Concatenate, Lambda)
 
-from tensorflow.python import keras
-from tensorflow.python.keras import Model, layers
-from tensorflow.keras.layers import (
-    Conv2D,
-    BatchNormalization,
-    MaxPool2D,
-    DepthwiseConv2D,
-    Concatenate,
-    Reshape,
-    Permute,
-    Concatenate,
-    Lambda,
-)
+# This is to fix the bug of https://github.com/tensorflow/tensorflow/issues/27298
+# if it gets fixed remove the related lines
+from tensorflow.python.keras.backend import get_graph
 
-BATCH_NORM_MOMENTUM = 0.997
-BATCH_NORM_EPSILON = 1e-3
+batch_norm_params = {'decay': 0.9997, 'epsilon': 1e-3}
 WEIGHT_DECAY = 0.00004
 
-
 def batch_norm(inputs: tf.Tensor):
-    # batch_norm = keras.Sequential()
-    # batch_norm.add(relu)
-    # batch_norm.add(batch_norm)
-
-    return BatchNormalization(momentum=BATCH_NORM_MOMENTUM,
-                              epsilon=BATCH_NORM_EPSILON)(inputs)
+    return BatchNormalization(momentum=batch_norm_params['decay'],
+                              epsilon=batch_norm_params['epsilon'])(inputs)
 
 
 def entry_layer(inputs: tf.Tensor, weight_decay: float = WEIGHT_DECAY):
     # entry
-    _x = Conv2D(
-        24,
-        kernel_size=3,
-        strides=2,
-        padding="same",
-        activation="relu",
-        kernel_regularizer=keras.regularizers.l2(weight_decay),
-    )(inputs)
+    _x = Conv2D(24,
+                kernel_size=3,
+                strides=2,
+                padding="same",
+                activation="relu",
+                kernel_regularizer=keras.regularizers.l2(weight_decay))(inputs)
     _x = batch_norm(_x)
     _x = MaxPool2D(padding="same")(_x)
 
@@ -61,8 +45,7 @@ def basic_unit_with_downsampling(inputs: tf.Tensor,
         strides=1,
         padding="same",
         activation="relu",
-        kernel_regularizer=keras.regularizers.l2(weight_decay),
-    )(inputs)
+        kernel_regularizer=keras.regularizers.l2(weight_decay))(inputs)
     right_path = batch_norm(right_path)
     right_path = DepthwiseConv2D(kernel_size=3,
                                  strides=stride,
@@ -75,8 +58,7 @@ def basic_unit_with_downsampling(inputs: tf.Tensor,
         strides=1,
         padding="same",
         activation="relu",
-        kernel_regularizer=keras.regularizers.l2(weight_decay),
-    )(right_path)
+        kernel_regularizer=keras.regularizers.l2(weight_decay))(right_path)
     right_path = batch_norm(right_path)
 
     # left path
@@ -91,8 +73,7 @@ def basic_unit_with_downsampling(inputs: tf.Tensor,
         strides=1,
         padding="same",
         activation="relu",
-        kernel_regularizer=keras.regularizers.l2(weight_decay),
-    )(left_path)
+        kernel_regularizer=keras.regularizers.l2(weight_decay))(left_path)
     left_path = batch_norm(left_path)
 
     _x = concat_shuffle([left_path, right_path])
@@ -124,27 +105,24 @@ def basic_unit(inputs: tf.Tensor,
 
     in_channels = splits[0].shape[-1]
 
-    _x = Conv2D(
-        in_channels,
-        kernel_size=1,
-        strides=1,
-        padding="same",
-        activation="relu",
-        kernel_regularizer=keras.regularizers.l2(weight_decay),
-    )(splits[1])
+    _x = Conv2D(in_channels,
+                kernel_size=1,
+                strides=1,
+                padding="same",
+                activation="relu",
+                kernel_regularizer=keras.regularizers.l2(weight_decay))(
+                    splits[1])
     _x = batch_norm(_x)
     _x = DepthwiseConv2D(kernel_size=3,
                          strides=1,
                          dilation_rate=rate,
                          padding="same")(_x)
-    _x = Conv2D(
-        in_channels,
-        kernel_size=1,
-        strides=1,
-        padding="same",
-        activation="relu",
-        kernel_regularizer=keras.regularizers.l2(weight_decay),
-    )(_x)
+    _x = Conv2D(in_channels,
+                kernel_size=1,
+                strides=1,
+                padding="same",
+                activation="relu",
+                kernel_regularizer=keras.regularizers.l2(weight_decay))(_x)
     _x = batch_norm(_x)
 
     _x = concat_shuffle([splits[0], _x])
@@ -164,21 +142,21 @@ def shufflenet_v2_base(inputs: tf.Tensor,
 
     layer_info = [
         {
-            "num_units": 4,
+            "num_units": 3,
             "out_channels": initial_depth,
-            "scope": "Stage2",
+            "scope": "stage_2",
             "stride": 2
         },
         {
-            "num_units": 8,
+            "num_units": 7,
             "out_channels": None,
-            "scope": "Stage3",
+            "scope": "stage_3",
             "stride": 2
         },
         {
-            "num_units": 4,
+            "num_units": 3,
             "out_channels": None,
-            "scope": "Stage4",
+            "scope": "stage_4",
             "stride": 2
         },
     ]
@@ -191,25 +169,27 @@ def shufflenet_v2_base(inputs: tf.Tensor,
             current_stride *= stride
             return stride, current_rate
 
-    _x = entry_layer(inputs, weight_decay)
+    with get_graph().as_default(), tf.name_scope("shufflenet_v2"):
+        _x = entry_layer(inputs, weight_decay)
 
-    current_stride = 4
-    current_rate = 1
-    for i in range(3):
-        layer = layer_info[i]
+        current_stride = 4
+        current_rate = 1
+        for i in range(3):
+            layer = layer_info[i]
+            stride, rate = stride_handling(layer["stride"], current_stride,
+                                           current_rate, output_stride)
 
-        stride, rate = stride_handling(layer["stride"], current_stride,
-                                       current_rate, output_stride)
-        _x = basic_unit_with_downsampling(_x,
-                                          layer["out_channels"],
-                                          stride=stride,
-                                          rate=rate,
-                                          weight_decay=weight_decay)
-        for _ in range(2, layer["num_units"] + 1):
-            _x = basic_unit(_x, rate=rate, weight_decay=weight_decay)
+            with tf.name_scope(layer["scope"]):
+                _x = basic_unit_with_downsampling(_x,
+                                                  layer["out_channels"],
+                                                  stride=stride,
+                                                  rate=rate,
+                                                  weight_decay=weight_decay)
+                for _ in range(layer["num_units"]):
+                    _x = basic_unit(_x, rate=rate, weight_decay=weight_decay)
 
-        current_stride *= stride
-        current_rate *= rate
+            current_stride *= stride
+            current_rate *= rate
 
     return _x
 
@@ -219,21 +199,22 @@ def shufflenet_v2(inputs: tf.Tensor,
                   depth_multiplier: float = 1.0,
                   output_stride: int = 32,
                   weight_decay: float = WEIGHT_DECAY):
+    from tensorflow.keras import layers
+
     _x = shufflenet_v2_base(inputs, depth_multiplier, output_stride)
 
     final_channels = 1024 if depth_multiplier != "2.0" else 2048
 
-    _x = Conv2D(
-        final_channels,
-        kernel_size=1,
-        strides=1,
-        padding="same",
-        kernel_regularizer=keras.regularizers.l2(weight_decay),
-    )(_x)
-    _x = layers.GlobalAveragePooling2D()(_x)
-    _x = layers.Dense(num_classes,
-                      activation="softmax",
-                      kernel_initializer="he_normal")(_x)
+    with get_graph().as_default(), tf.name_scope("shufflenet_v2/logits"):
+        _x = Conv2D(final_channels,
+                    kernel_size=1,
+                    strides=1,
+                    padding="same",
+                    kernel_regularizer=keras.regularizers.l2(weight_decay))(_x)
+        _x = layers.GlobalAveragePooling2D()(_x)
+        _x = layers.Dense(num_classes,
+                          activation="softmax",
+                          kernel_initializer="he_normal")(_x)
 
     return _x
 
@@ -262,7 +243,7 @@ if __name__ == "__main__":
     # output = shufflenet_v2(inputs, 10, 1.0)
     # model = tf.keras.Model(inputs=inputs, outputs=output)
 
-    # model.compile(loss="categorical_crossentropy", optimizer='adam', metrics=["accuracy"])
+    # model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
 
     # model.fit(
     #     x_train,
@@ -279,10 +260,10 @@ if __name__ == "__main__":
 
     # model.save("model.h5")
 
-    inputs = keras.Input(shape=(32, 32, 3))
-    output = shufflenet_v2(inputs, 1000, 1.0, 4)
+    inputs = keras.Input(shape=(224, 224, 3))
+    output = shufflenet_v2(inputs, 1000, 1.0)
 
-    model = tf.keras.Model(inputs=inputs, outputs=output)
+    model = keras.Model(inputs=inputs, outputs=output)
 
     model.summary()
     model.save("shufflenet_v2.h5")

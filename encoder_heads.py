@@ -3,6 +3,10 @@ import tensorflow.keras as keras
 from tensorflow.keras import layers
 from tensorflow.keras.layers import AveragePooling2D, BatchNormalization, Conv2D, Concatenate
 
+# This is to fix the bug of https://github.com/tensorflow/tensorflow/issues/27298
+# if it gets fixed remove the related lines
+from tensorflow.python.keras.backend import get_graph
+
 batch_norm_params = {'decay': 0.9997, 'epsilon': 1e-5}
 WEIGHT_DECAY = 0.00004
 
@@ -15,13 +19,15 @@ def batch_norm(inputs: tf.Tensor):
 def exit_flow(inputs: tf.Tensor,
               filter_count: int = 256,
               weight_decay: float = WEIGHT_DECAY):
-    _x = Conv2D(filter_count,
-                kernel_size=1,
-                strides=1,
-                padding="same",
-                activation="relu",
-                kernel_regularizer=keras.regularizers.l2(weight_decay))(inputs)
-    _x = batch_norm(_x)
+    with get_graph().as_default(), tf.name_scope("exit_flow"):
+        _x = Conv2D(
+            filter_count,
+            kernel_size=1,
+            strides=1,
+            padding="same",
+            activation="relu",
+            kernel_regularizer=keras.regularizers.l2(weight_decay))(inputs)
+        _x = batch_norm(_x)
 
     return _x
 
@@ -33,27 +39,28 @@ def dpc_head(inputs: tf.Tensor, weight_decay: float = WEIGHT_DECAY):
 def basic_head(inputs: tf.Tensor, weight_decay: float = WEIGHT_DECAY):
     _, width, height, _ = inputs.shape
 
-    left_path = AveragePooling2D(pool_size=(width, height))(inputs)
-    left_path = Conv2D(
-        256,
-        kernel_size=1,
-        strides=1,
-        padding="same",
-        activation="relu",
-        kernel_regularizer=keras.regularizers.l2(weight_decay))(left_path)
-    left_path = batch_norm(left_path)
-    left_path = tf.image.resize(left_path, [width, height])
+    with get_graph().as_default(), tf.name_scope("basic_head"):
+        left_path = AveragePooling2D(pool_size=(width, height))(inputs)
+        left_path = Conv2D(
+            256,
+            kernel_size=1,
+            strides=1,
+            padding="same",
+            activation="relu",
+            kernel_regularizer=keras.regularizers.l2(weight_decay))(left_path)
+        left_path = batch_norm(left_path)
+        left_path = tf.image.resize(left_path, [width, height])
 
-    right_path = Conv2D(
-        256,
-        kernel_size=1,
-        strides=1,
-        padding="same",
-        activation="relu",
-        kernel_regularizer=keras.regularizers.l2(weight_decay))(inputs)
-    right_path = batch_norm(right_path)
+        right_path = Conv2D(
+            256,
+            kernel_size=1,
+            strides=1,
+            padding="same",
+            activation="relu",
+            kernel_regularizer=keras.regularizers.l2(weight_decay))(inputs)
+        right_path = batch_norm(right_path)
 
-    _x = Concatenate()([left_path, right_path])
+        _x = Concatenate()([left_path, right_path])
     _x = exit_flow(_x, weight_decay=weight_decay)
 
     return _x

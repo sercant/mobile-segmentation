@@ -11,6 +11,7 @@ from tensorflow.python.keras.backend import get_graph
 batch_norm_params = {'decay': 0.9997, 'epsilon': 1e-3}
 WEIGHT_DECAY = 0.00004
 
+
 def batch_norm(inputs: tf.Tensor):
     return BatchNormalization(momentum=batch_norm_params['decay'],
                               epsilon=batch_norm_params['epsilon'])(inputs)
@@ -260,10 +261,11 @@ if __name__ == "__main__":
 
     # model.save("model.h5")
 
-    inputs = keras.Input(shape=(224, 224, 3))
-    output = shufflenet_v2(inputs, 1000, 1.0)
+    inputs = keras.Input(shape=(32, 32, 3))
+    output = shufflenet_v2(inputs, 10, 1.0)
 
     model = keras.Model(inputs=inputs, outputs=output)
+    model.load_weights('./checkpoints/cifar10.h5')
 
     model.summary()
-    model.save("shufflenet_v2.h5")
+    model.save_weights("./checkpoints/cifar10.hdf5")

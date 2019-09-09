@@ -1,19 +1,21 @@
 import tensorflow as tf
 import tensorflow.keras as keras
 from tensorflow.keras import layers
-from tensorflow.keras.layers import AveragePooling2D, BatchNormalization, Conv2D, Concatenate
+from tensorflow.keras.layers import AveragePooling2D, BatchNormalization, Conv2D, Concatenate, DepthwiseConv2D
 
 # This is to fix the bug of https://github.com/tensorflow/tensorflow/issues/27298
 # if it gets fixed remove the related lines
 from tensorflow.python.keras.backend import get_graph
 
-batch_norm_params = {'decay': 0.9997, 'epsilon': 1e-5}
+BATCH_NORM_PARAMS = {'decay': 0.9997, 'epsilon': 1e-5}
 WEIGHT_DECAY = 0.00004
 
 
 def batch_norm(inputs: tf.Tensor):
-    return BatchNormalization(momentum=batch_norm_params['decay'],
-                              epsilon=batch_norm_params['epsilon'])(inputs)
+    _x = BatchNormalization(momentum=BATCH_NORM_PARAMS['decay'],
+                            epsilon=BATCH_NORM_PARAMS['epsilon'])(inputs)
+
+    return _x
 
 
 def exit_flow(inputs: tf.Tensor,
@@ -33,7 +35,42 @@ def exit_flow(inputs: tf.Tensor,
 
 
 def dpc_head(inputs: tf.Tensor, weight_decay: float = WEIGHT_DECAY):
-    return inputs
+    def dpc_conv_op(inputs: tf.Tensor,
+                    rate: list,
+                    weight_decay: float = WEIGHT_DECAY):
+        _x = DepthwiseConv2D(kernel_size=3,
+                             strides=1,
+                             dilation_rate=rate,
+                             activation="relu",
+                             padding="same")(inputs)
+        _x = batch_norm(_x)
+        _x = Conv2D(256,
+                    kernel_size=1,
+                    strides=1,
+                    padding="same",
+                    activation="relu",
+                    kernel_regularizer=keras.regularizers.l2(weight_decay))(_x)
+        _x = batch_norm(_x)
+
+        return _x
+
+    with get_graph().as_default(), tf.name_scope("dpc_head"):
+        # depth 1
+        _x = dpc_conv_op(inputs, rate=[1, 6], weight_decay=weight_decay)
+
+        # depth 2
+        _x1 = dpc_conv_op(_x, rate=[18, 15], weight_decay=weight_decay)
+        _x2 = dpc_conv_op(_x, rate=[6, 21], weight_decay=weight_decay)
+        _x3 = dpc_conv_op(_x, rate=[1, 1], weight_decay=weight_decay)
+
+        # depth 3
+        _x4 = dpc_conv_op(_x1, rate=[6, 3], weight_decay=weight_decay)
+
+        _x = Concatenate()([_x, _x1, _x2, _x3, _x4])
+
+    _x = exit_flow(_x, weight_decay=weight_decay)
+
+    return _x
 
 
 def basic_head(inputs: tf.Tensor, weight_decay: float = WEIGHT_DECAY):

@@ -8,25 +8,28 @@ from tensorflow.keras.layers import (Conv2D, BatchNormalization, MaxPool2D,
 # if it gets fixed remove the related lines
 from tensorflow.python.keras.backend import get_graph
 
-batch_norm_params = {'decay': 0.9997, 'epsilon': 1e-3}
+BATCH_NORM_PARAMS = {'decay': 0.9997, 'epsilon': 1e-3}
 WEIGHT_DECAY = 0.00004
 
 
 def batch_norm(inputs: tf.Tensor):
-    return BatchNormalization(momentum=batch_norm_params['decay'],
-                              epsilon=batch_norm_params['epsilon'])(inputs)
+    _x = BatchNormalization(momentum=BATCH_NORM_PARAMS['decay'],
+                            epsilon=BATCH_NORM_PARAMS['epsilon'])(inputs)
+
+    return _x
 
 
 def entry_layer(inputs: tf.Tensor, weight_decay: float = WEIGHT_DECAY):
-    # entry
-    _x = Conv2D(24,
-                kernel_size=3,
-                strides=2,
-                padding="same",
-                activation="relu",
-                kernel_regularizer=keras.regularizers.l2(weight_decay))(inputs)
-    _x = batch_norm(_x)
-    _x = MaxPool2D(padding="same")(_x)
+    with tf.name_scope("entry_layer"):
+        _x = Conv2D(
+            24,
+            kernel_size=3,
+            strides=2,
+            padding="same",
+            activation="relu",
+            kernel_regularizer=keras.regularizers.l2(weight_decay))(inputs)
+        _x = batch_norm(_x)
+        _x = MaxPool2D(padding="same")(_x)
 
     return _x
 
@@ -268,4 +271,3 @@ if __name__ == "__main__":
     model.load_weights('./checkpoints/cifar10.h5')
 
     model.summary()
-    model.save_weights("./checkpoints/cifar10.hdf5")

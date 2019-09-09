@@ -24,11 +24,16 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
                                use_dpc: bool = True,
                                output_size: list = None,
                                feature_extractor_multiplier: float = 1.0,
-                               weight_decay: float = 0.00004):
+                               weight_decay: float = 0.00004,
+                               feature_extractor_checkpoint: str = None):
     _x = shufflenet_v2_base(inputs,
                             feature_extractor_multiplier,
                             output_stride,
                             weight_decay=weight_decay)
+    if feature_extractor_checkpoint is not None:
+        tmp = keras.Model(inputs=inputs, outputs=_x)
+        tmp.load_weights(feature_extractor_checkpoint, by_name=True)
+
     _x = encoder_heads(_x, use_dpc, weight_decay=weight_decay)
 
     with get_graph().as_default(), tf.name_scope("logits"):
@@ -54,18 +59,15 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
 
 
 if __name__ == "__main__":
-    inputs = keras.Input(shape=(225, 225, 3))
-    output = shufflenet_v2_segmentation(inputs, 19, 16, False)
+    inputs = keras.Input(shape=[225, 225, 3])
+    output = shufflenet_v2_segmentation(
+        inputs,
+        19,
+        16,
+        True,
+        feature_extractor_checkpoint="./checkpoints/cifar10.hdf5")
 
     model = tf.keras.Model(inputs=inputs, outputs=output)
 
-    import h5py
-    from utils import load_weights_from_hdf5_group_by_name
-
-    with h5py.File("./checkpoints/cifar10.hdf5", 'r') as f:
-        if 'layer_names' not in f.attrs and 'model_weights' in f:
-            f = f['model_weights']
-        load_weights_from_hdf5_group_by_name(f, model.layers, skip_mismatch=True)
-
     model.summary()
-    model.save("shufflenet_v2.h5")
+    model.save("./checkpoints/shufflenet_v2_seg.h5")

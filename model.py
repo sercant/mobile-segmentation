@@ -42,6 +42,7 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
             kernel_size=1,
             strides=1,
             padding="same",
+            activation="softmax",
             kernel_regularizer=keras.regularizers.l2(weight_decay))(_x)
 
         _x = layers.Dropout(0.1)(_x)

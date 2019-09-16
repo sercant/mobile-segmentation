@@ -3,12 +3,19 @@ import collections
 import tensorflow as tf
 
 
-def decode_image(key: str):
-    return lambda x: tf.io.decode_image(x[key])
+@tf.function
+def decode_image(x: tf.Tensor):
+    return tf.io.decode_image(x, channels=3)
 
 
-def decode_tensor(key: str):
-    return lambda x: x[key]
+@tf.function
+def decode_label(x: tf.Tensor):
+    return tf.io.decode_image(x, channels=1)
+
+
+@tf.function
+def decode_tensor(x: tf.Tensor):
+    return x
 
 
 # Named tuple to describe the dataset properties.
@@ -51,10 +58,10 @@ _ADE20K_INFORMATION = DatasetDescriptor(splits_to_sizes={
                                         ignore_label=0)
 
 _COCO_INFORMATION = DatasetDescriptor(splits_to_sizes={
-    'train': 69795,
-    'val': 2956
+    'train': 117266,
+    'val': 4952
 },
-                                      num_classes=10,
+                                      num_classes=92,
                                       ignore_label=255)
 
 _DATASETS_INFORMATION = {
@@ -86,11 +93,11 @@ FEATURE_DESCRIPTION = {
 }
 
 ITEMS_TO_HANDLERS = {
-    'image': decode_image('image/encoded'),
-    'image_name': decode_tensor('image/filename'),
-    'height': decode_tensor('image/height'),
-    'width': decode_tensor('image/width'),
-    'labels_class': decode_image('image/segmentation/class/encoded')
+    'image': (decode_image, 'image/encoded'),
+    'image_name': (decode_tensor, 'image/filename'),
+    'height': (decode_tensor, 'image/height'),
+    'width': (decode_tensor, 'image/width'),
+    'labels_class': (decode_label, 'image/segmentation/class/encoded')
 }
 
 
@@ -98,36 +105,27 @@ def get_dataset(dataset_name: str, split_name: str, dataset_dir: str):
     if dataset_name not in _DATASETS_INFORMATION:
         raise ValueError('The specified dataset is not supported yet.')
 
+    @tf.function
     def _parse_to_items(example_proto: tf.Tensor):
         example: dict = tf.io.parse_single_example(example_proto,
                                                    FEATURE_DESCRIPTION)
         inputs = {}
-        for key, func in ITEMS_TO_HANDLERS.items():
-            inputs[key] = func(example)
+        for key, tup in ITEMS_TO_HANDLERS.items():
+            decoder_func, internal_key = tup
+            inputs[key] = decoder_func(example[internal_key])
         return inputs
 
     files = tf.io.matching_files(
         os.path.join(dataset_dir, FILE_PATTERN % split_name))
-    # shards = tf.data.Dataset.from_tensor_slices(files)
-    # shards = shards.shuffle(tf.cast(tf.shape(files)[0], tf.int64))
-    # shards = shards.repeat()
-    # dataset = shards.interleave(tf.data.TFRecordDataset, cycle_length=4)
-    # dataset = dataset.shuffle(buffer_size=8192)
+
     _dataset = tf.data.TFRecordDataset(files)
     _dataset = _dataset.map(_parse_to_items)
-
-    # dataset.shuffle()
-    # dataset.repeat()
-    # dataset = dataset.apply(
-    #     tf.data.experimental.map_and_batch(
-    #         map_func=_parse_to_items,
-    #         batch_size=32))
 
     return _dataset, _DATASETS_INFORMATION[dataset_name]
 
 
 if __name__ == "__main__":
-    dataset, dataset_description = get_dataset("", "val", "./data")
+    dataset, dataset_description = get_dataset("coco", "val", "./data/coco/tfrecord")
 
     for item in dataset.take(10):
         print(item)

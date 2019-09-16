@@ -15,7 +15,7 @@ class SoftmaxCrossEntropy(object):
     def __call__(self, y_true: tf.Tensor, y_pred: tf.Tensor, *args, **kwargs):
         y_true = tf.cast(y_true, tf.int32)
         y_pred = tf.cast(y_pred, tf.float32)
-        y_pred = tf.nn.softmax(y_pred)
+        # y_pred = tf.nn.softmax(y_pred)
 
         labels = tf.reshape(y_true, shape=[-1])
         not_ignore_mask = tf.cast(tf.not_equal(labels, self.ignore_label),

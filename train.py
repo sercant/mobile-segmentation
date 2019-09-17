@@ -64,8 +64,17 @@ batch_size = 16
 input_size = [225, 225]
 
 dataset, dataset_desc = get_dataset(dataset_name, dataset_split, dataset_dir)
-preprocessed_dataset = dataset.map(preprocess(dataset_desc,
-                                              input_size)).batch(batch_size)
+preprocessed_dataset = dataset.map(
+    preprocess(input_size,
+               is_training=True,
+               ignore_label=dataset_desc.ignore_label)).shuffle(1024).batch(
+                   batch_size)
+
+# val_dataset, _ = get_dataset(dataset_name, dataset_split, dataset_dir)
+# preprocessed_val_dataset = val_dataset.map(
+#     preprocess(input_size,
+#                is_training=False,
+#                ignore_label=dataset_desc.ignore_label)).batch(1)
 
 inputs = keras.Input(shape=(input_size[0], input_size[1], 3))
 outputs = shufflenet_v2_segmentation(inputs, dataset_desc.num_classes)
@@ -78,7 +87,6 @@ train_accuracy = MIOU(dataset_desc.num_classes, dataset_desc.ignore_label)
 optimizer = tf.keras.optimizers.Adam()
 
 model.compile(loss=train_loss, optimizer=optimizer, metrics=[train_accuracy])
-model.fit(preprocessed_dataset,
-          epochs=3,
-          steps_per_epoch=dataset_desc.splits_to_sizes[dataset_split] //
-          batch_size)
+model.fit_generator(
+    preprocessed_dataset,
+    epochs=10) # , validation_data=val_dataset)

@@ -37,7 +37,7 @@ def resize_with_pad(image: tf.Tensor,
                                      method=method)
     image = image + pad_value
 
-    return tf.cast(image, image_type)
+    return tf.cast(image, _in_type)
 
 
 @tf.function
@@ -58,10 +58,10 @@ def resize_to_range(image: tf.Tensor,
     return image, tf.cast(label, tf.int32)
 
 
-def preprocess(dataset_desc: dict,
-               input_size: list,
+def preprocess(input_size: list,
                image_pad_val: float = 127.5,
-               is_training: bool = True):
+               is_training: bool = True,
+               ignore_label: int = 255):
     @tf.function
     def _func(inputs: dict):
         image = tf.cast(inputs['image'], tf.float32)
@@ -73,6 +73,6 @@ def preprocess(dataset_desc: dict,
             image, label = flip_dim([image, label])
 
         return resize_to_range(image, label, input_size[0], input_size[1],
-                               image_pad_val, dataset_desc.ignore_label)
+                               image_pad_val, ignore_label)
 
     return _func

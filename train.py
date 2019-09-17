@@ -41,7 +41,8 @@ class MIOU(tf.metrics.MeanIoU):
         self.ignore_label = ignore_label
 
     @tf.function
-    def update_state(self, y_true: tf.Tensor, y_pred: tf.Tensor, sample_weight):
+    def update_state(self, y_true: tf.Tensor, y_pred: tf.Tensor,
+                     sample_weight):
         y_true = tf.cast(y_true, tf.int32)
         y_pred = tf.cast(y_pred, tf.float32)
         y_pred = tf.argmax(y_pred, axis=-1)
@@ -66,18 +67,18 @@ dataset, dataset_desc = get_dataset(dataset_name, dataset_split, dataset_dir)
 preprocessed_dataset = dataset.map(preprocess(dataset_desc,
                                               input_size)).batch(batch_size)
 
-
 inputs = keras.Input(shape=(input_size[0], input_size[1], 3))
 outputs = shufflenet_v2_segmentation(inputs, dataset_desc.num_classes)
 model = keras.Model(inputs=inputs, outputs=outputs)
 
-
 train_loss = SoftmaxCrossEntropy(dataset_desc.num_classes,
-                                  dataset_desc.ignore_label)
+                                 dataset_desc.ignore_label)
 train_accuracy = MIOU(dataset_desc.num_classes, dataset_desc.ignore_label)
 
 optimizer = tf.keras.optimizers.Adam()
 
-
 model.compile(loss=train_loss, optimizer=optimizer, metrics=[train_accuracy])
-model.fit(preprocessed_dataset, epochs=3, steps_per_epoch=dataset_desc.splits_to_sizes[dataset_split] // batch_size)
+model.fit(preprocessed_dataset,
+          epochs=3,
+          steps_per_epoch=dataset_desc.splits_to_sizes[dataset_split] //
+          batch_size)

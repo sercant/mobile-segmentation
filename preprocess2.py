@@ -2,13 +2,33 @@ import tensorflow as tf
 
 
 @tf.function
+def flip_dim(tensor_list: list, prob: float = 0.5, dim: int = 1):
+    random_value = tf.random.uniform([])
+
+    @tf.function
+    def flip():
+        flipped = []
+        for tensor in tensor_list:
+            flipped.append(tf.reverse(tensor, [dim]))
+        return flipped
+
+    outputs = tf.cond(pred=tf.less_equal(random_value, prob),
+                      true_fn=flip,
+                      false_fn=lambda: tensor_list)
+    if not isinstance(outputs, (list, tuple)):
+        outputs = [outputs]
+
+    return outputs
+
+
+@tf.function
 def resize_with_pad(image: tf.Tensor,
                     target_height: int,
                     target_width: int,
                     pad_value: float,
                     method=tf.image.ResizeMethod.BILINEAR):
-    image_type = image.dtype
-    assert image_type == tf.float32 or image_type == tf.int32
+    _in_type = image.dtype
+    assert _in_type in (tf.float32, tf.int32)
 
     image = image - pad_value
     image = tf.image.resize_with_pad(image,
@@ -40,13 +60,17 @@ def resize_to_range(image: tf.Tensor,
 
 def preprocess(dataset_desc: dict,
                input_size: list,
-               image_pad_val: float = 127.5):
+               image_pad_val: float = 127.5,
+               is_training: bool = True):
     @tf.function
     def _func(inputs: dict):
         image = tf.cast(inputs['image'], tf.float32)
         label = inputs['labels_class']
         if label is not None:
             label = tf.cast(label, tf.int32)
+
+        if is_training:
+            image, label = flip_dim([image, label])
 
         return resize_to_range(image, label, input_size[0], input_size[1],
                                image_pad_val, dataset_desc.ignore_label)

@@ -1,8 +1,8 @@
 import tensorflow as tf
 import tensorflow.keras as keras
 from tensorflow.keras import layers
-from shufflenet_v2 import shufflenet_v2_base
-from encoder_heads import dpc_head, basic_head
+from core.shufflenet_v2 import shufflenet_v2_base
+from core.encoder_heads import dpc_head, basic_head
 
 # This is to fix the bug of https://github.com/tensorflow/tensorflow/issues/27298
 # if it gets fixed remove the related lines

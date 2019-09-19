@@ -8,7 +8,7 @@ from tensorflow.keras.layers import (Conv2D, BatchNormalization, MaxPool2D,
 # if it gets fixed remove the related lines
 from tensorflow.python.keras.backend import get_graph
 
-BATCH_NORM_PARAMS = {'decay': 0.9997, 'epsilon': 1e-3}
+BATCH_NORM_PARAMS = {'decay': 0.997, 'epsilon': 1e-5}
 WEIGHT_DECAY = 0.00004
 
 
@@ -153,13 +153,13 @@ def shufflenet_v2_base(inputs: tf.Tensor,
         },
         {
             "num_units": 7,
-            "out_channels": None,
+            "out_channels": initial_depth * 2,
             "scope": "stage_3",
             "stride": 2
         },
         {
             "num_units": 3,
-            "out_channels": None,
+            "out_channels": initial_depth * 2,
             "scope": "stage_4",
             "stride": 2
         },
@@ -173,11 +173,14 @@ def shufflenet_v2_base(inputs: tf.Tensor,
             current_stride *= stride
             return stride, current_rate
 
-    with get_graph().as_default(), tf.name_scope("shufflenet_v2"):
+    brach_exits = {}
+
+    with tf.name_scope("shufflenet_v2"):
         _x = entry_layer(inputs, weight_decay)
 
         current_stride = 4
         current_rate = 1
+        brach_exits[str(current_stride)] = _x
         for i in range(3):
             layer = layer_info[i]
             stride, rate = stride_handling(layer["stride"], current_stride,
@@ -195,7 +198,10 @@ def shufflenet_v2_base(inputs: tf.Tensor,
             current_stride *= stride
             current_rate *= rate
 
-    return _x
+            if stride != 1:
+                brach_exits[str(current_stride)] = _x
+
+    return _x, brach_exits
 
 
 def shufflenet_v2(inputs: tf.Tensor,
@@ -205,11 +211,11 @@ def shufflenet_v2(inputs: tf.Tensor,
                   weight_decay: float = WEIGHT_DECAY):
     from tensorflow.keras import layers
 
-    _x = shufflenet_v2_base(inputs, depth_multiplier, output_stride)
+    _x, _ = shufflenet_v2_base(inputs, depth_multiplier, output_stride)
 
     final_channels = 1024 if depth_multiplier != "2.0" else 2048
 
-    with get_graph().as_default(), tf.name_scope("shufflenet_v2/logits"):
+    with tf.name_scope("shufflenet_v2/logits"):
         _x = Conv2D(final_channels,
                     kernel_size=1,
                     strides=1,

@@ -21,7 +21,7 @@ def batch_norm(inputs: tf.Tensor):
 def exit_flow(inputs: tf.Tensor,
               filter_count: int = 256,
               weight_decay: float = WEIGHT_DECAY):
-    with get_graph().as_default(), tf.name_scope("exit_flow"):
+    with tf.name_scope("exit_flow"):
         _x = Conv2D(
             filter_count,
             kernel_size=1,
@@ -34,7 +34,9 @@ def exit_flow(inputs: tf.Tensor,
     return _x
 
 
-def dpc_head(inputs: tf.Tensor, weight_decay: float = WEIGHT_DECAY):
+def dpc_head(inputs: tf.Tensor,
+             weight_decay: float = WEIGHT_DECAY,
+             filter_per_branch: int = 256):
     def dpc_conv_op(inputs: tf.Tensor,
                     rate: list,
                     weight_decay: float = WEIGHT_DECAY):
@@ -44,7 +46,7 @@ def dpc_head(inputs: tf.Tensor, weight_decay: float = WEIGHT_DECAY):
                              activation="relu",
                              padding="same")(inputs)
         _x = batch_norm(_x)
-        _x = Conv2D(256,
+        _x = Conv2D(filter_per_branch,
                     kernel_size=1,
                     strides=1,
                     padding="same",
@@ -54,7 +56,7 @@ def dpc_head(inputs: tf.Tensor, weight_decay: float = WEIGHT_DECAY):
 
         return _x
 
-    with get_graph().as_default(), tf.name_scope("dpc_head"):
+    with tf.name_scope("dpc_head"):
         # depth 1
         _x = dpc_conv_op(inputs, rate=[1, 6], weight_decay=weight_decay)
 
@@ -68,18 +70,22 @@ def dpc_head(inputs: tf.Tensor, weight_decay: float = WEIGHT_DECAY):
 
         _x = Concatenate()([_x, _x1, _x2, _x3, _x4])
 
-    _x = exit_flow(_x, weight_decay=weight_decay)
+    _x = exit_flow(_x,
+                   filter_count=filter_per_branch,
+                   weight_decay=weight_decay)
 
     return _x
 
 
-def basic_head(inputs: tf.Tensor, weight_decay: float = WEIGHT_DECAY):
+def basic_head(inputs: tf.Tensor,
+               weight_decay: float = WEIGHT_DECAY,
+               filter_per_branch: int = 256):
     _, width, height, _ = inputs.shape
 
-    with get_graph().as_default(), tf.name_scope("basic_head"):
+    with tf.name_scope("basic_head"):
         left_path = AveragePooling2D(pool_size=(width, height))(inputs)
         left_path = Conv2D(
-            256,
+            filter_per_branch,
             kernel_size=1,
             strides=1,
             padding="same",
@@ -89,7 +95,7 @@ def basic_head(inputs: tf.Tensor, weight_decay: float = WEIGHT_DECAY):
         left_path = tf.image.resize(left_path, [width, height])
 
         right_path = Conv2D(
-            256,
+            filter_per_branch,
             kernel_size=1,
             strides=1,
             padding="same",
@@ -98,6 +104,8 @@ def basic_head(inputs: tf.Tensor, weight_decay: float = WEIGHT_DECAY):
         right_path = batch_norm(right_path)
 
         _x = Concatenate()([left_path, right_path])
-    _x = exit_flow(_x, weight_decay=weight_decay)
+    _x = exit_flow(_x,
+                   filter_count=filter_per_branch,
+                   weight_decay=weight_decay)
 
     return _x

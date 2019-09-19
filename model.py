@@ -11,10 +11,14 @@ from tensorflow.python.keras.backend import get_graph
 
 def encoder_heads(inputs: tf.Tensor,
                   use_dpc: bool = True,
-                  weight_decay: float = 0.00004):
-    _x = dpc_head(inputs,
-                  weight_decay=weight_decay) if use_dpc else basic_head(
-                      inputs, weight_decay=weight_decay)
+                  weight_decay: float = 0.00004,
+                  filter_per_branch: int = 256):
+    _x = dpc_head(
+        inputs, weight_decay=weight_decay,
+        filter_per_branch=filter_per_branch) if use_dpc else basic_head(
+            inputs,
+            weight_decay=weight_decay,
+            filter_per_branch=filter_per_branch)
     return _x
 
 
@@ -25,18 +29,23 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
                                output_size: list = None,
                                feature_extractor_multiplier: float = 1.0,
                                weight_decay: float = 0.00004,
+                               filter_per_encoder_branch: int = 256,
+                               decoder_stride: int = None,
                                feature_extractor_checkpoint: str = None):
-    _x = shufflenet_v2_base(inputs,
-                            feature_extractor_multiplier,
-                            output_stride,
-                            weight_decay=weight_decay)
+    _x, branch_exits = shufflenet_v2_base(inputs,
+                                          feature_extractor_multiplier,
+                                          output_stride,
+                                          weight_decay=weight_decay)
     if feature_extractor_checkpoint is not None:
         tmp = keras.Model(inputs=inputs, outputs=_x)
         tmp.load_weights(feature_extractor_checkpoint, by_name=True)
 
-    _x = encoder_heads(_x, use_dpc, weight_decay=weight_decay)
+    _x = encoder_heads(_x,
+                       use_dpc,
+                       weight_decay=weight_decay,
+                       filter_per_branch=filter_per_encoder_branch)
 
-    with get_graph().as_default(), tf.name_scope("logits"):
+    with tf.name_scope("logits"):
         _x = layers.Conv2D(
             number_of_classes,
             kernel_size=1,
@@ -44,7 +53,27 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
             padding="same",
             kernel_regularizer=keras.regularizers.l2(weight_decay))(_x)
 
-        _x = layers.Dropout(0.1)(_x)
+        # _x = layers.Dropout(0.1)(_x)
+
+        if decoder_stride != None:
+            shape = tf.add(_x.shape[1:3], -1)
+            shape = tf.multiply(shape, output_stride // decoder_stride)
+            shape = tf.add(shape, 1)
+            _x = tf.image.resize(_x, shape)
+            branch = branch_exits[str(decoder_stride)]
+            branch = layers.Conv2D(
+                number_of_classes,
+                kernel_size=1,
+                strides=1,
+                padding="same",
+                kernel_regularizer=keras.regularizers.l2(weight_decay))(branch)
+            _x = layers.Concatenate()([_x, branch])
+            _x = layers.Conv2D(
+                number_of_classes,
+                kernel_size=1,
+                strides=1,
+                padding="same",
+                kernel_regularizer=keras.regularizers.l2(weight_decay))(_x)
 
         if output_size is not None and len(output_size) != 2:
             raise ValueError(
@@ -64,8 +93,9 @@ if __name__ == "__main__":
         inputs,
         19,
         16,
-        True,
-        feature_extractor_checkpoint="./checkpoints/cifar10.hdf5")
+        use_dpc=False,
+        decoder_stride=8,
+        filter_per_encoder_branch=128)
 
     model = tf.keras.Model(inputs=inputs, outputs=output)
 

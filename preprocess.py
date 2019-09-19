@@ -71,8 +71,10 @@ def preprocess(input_size: list,
 
         if is_training:
             image, label = flip_dim([image, label])
-
-        return resize_to_range(image, label, input_size[0], input_size[1],
-                               image_pad_val, ignore_label)
+        image, label = resize_to_range(image, label, input_size[0],
+                                       input_size[1], image_pad_val,
+                                       ignore_label)
+        image = image / 255.0 - 1.0
+        return image, label
 
     return _func

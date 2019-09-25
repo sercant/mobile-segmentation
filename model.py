@@ -8,6 +8,16 @@ from core.encoder_heads import dpc_head, basic_head
 # if it gets fixed remove the related lines
 from tensorflow.python.keras.backend import get_graph
 
+BATCH_NORM_PARAMS = {'decay': 0.9997, 'epsilon': 1e-5}
+
+
+def batch_norm(inputs: tf.Tensor):
+    _x = layers.BatchNormalization(
+        momentum=BATCH_NORM_PARAMS['decay'],
+        epsilon=BATCH_NORM_PARAMS['epsilon'])(inputs)
+
+    return _x
+
 
 def encoder_heads(inputs: tf.Tensor,
                   use_dpc: bool = True,
@@ -45,6 +55,42 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
                        weight_decay=weight_decay,
                        filter_per_branch=filter_per_encoder_branch)
 
+    if decoder_stride != None:
+        with tf.name_scope("decoder"):
+            branch = branch_exits[str(decoder_stride)]
+            branch = layers.Conv2D(
+                48,
+                kernel_size=1,
+                strides=1,
+                activation="relu",
+                padding="same",
+                kernel_regularizer=keras.regularizers.l2(weight_decay))(
+                    branch)
+            branch = batch_norm(branch)
+
+            shape = tf.add(_x.shape[1:3], -1)
+            shape = tf.multiply(shape, output_stride // decoder_stride)
+            shape = tf.add(shape, 1)
+            _x = tf.image.resize(_x, shape)
+
+            _x = layers.Concatenate()([_x, branch])
+
+            for i in range(2):
+                _x = layers.DepthwiseConv2D(kernel_size=3,
+                                            strides=1,
+                                            activation="relu",
+                                            padding="same")(_x)
+                _x = batch_norm(_x)
+                _x = layers.Conv2D(
+                    filter_per_encoder_branch,
+                    kernel_size=1,
+                    strides=1,
+                    padding="same",
+                    activation="relu",
+                    kernel_regularizer=keras.regularizers.l2(
+                        weight_decay))(_x)
+                _x = batch_norm(_x)
+
     with tf.name_scope("logits"):
         _x = layers.Conv2D(
             number_of_classes,
@@ -54,26 +100,6 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
             kernel_regularizer=keras.regularizers.l2(weight_decay))(_x)
 
         # _x = layers.Dropout(0.1)(_x)
-
-        if decoder_stride != None:
-            shape = tf.add(_x.shape[1:3], -1)
-            shape = tf.multiply(shape, output_stride // decoder_stride)
-            shape = tf.add(shape, 1)
-            _x = tf.image.resize(_x, shape)
-            branch = branch_exits[str(decoder_stride)]
-            branch = layers.Conv2D(
-                number_of_classes,
-                kernel_size=1,
-                strides=1,
-                padding="same",
-                kernel_regularizer=keras.regularizers.l2(weight_decay))(branch)
-            _x = layers.Concatenate()([_x, branch])
-            _x = layers.Conv2D(
-                number_of_classes,
-                kernel_size=1,
-                strides=1,
-                padding="same",
-                kernel_regularizer=keras.regularizers.l2(weight_decay))(_x)
 
         if output_size is not None and len(output_size) != 2:
             raise ValueError(
@@ -88,14 +114,13 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
 
 
 if __name__ == "__main__":
-    inputs = keras.Input(shape=[225, 225, 3])
-    output = shufflenet_v2_segmentation(
-        inputs,
-        19,
-        16,
-        use_dpc=False,
-        decoder_stride=8,
-        filter_per_encoder_branch=128)
+    inputs = keras.Input(shape=[513, 513, 3])
+    output = shufflenet_v2_segmentation(inputs,
+                                        21,
+                                        16,
+                                        use_dpc=False,
+                                        decoder_stride=8,
+                                        filter_per_encoder_branch=128)
 
     model = tf.keras.Model(inputs=inputs, outputs=output)
 

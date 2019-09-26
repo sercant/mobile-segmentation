@@ -80,9 +80,7 @@ def basic_unit_with_downsampling(inputs: tf.Tensor,
         kernel_regularizer=keras.regularizers.l2(weight_decay))(left_path)
     left_path = batch_norm(left_path)
 
-    _x = concat_shuffle([left_path, right_path])
-
-    return _x
+    return left_path, right_path
 
 
 def channel_shuffle(inputs: tf.Tensor):
@@ -95,27 +93,25 @@ def channel_shuffle(inputs: tf.Tensor):
     return _x
 
 
-def concat_shuffle(inputs: list):
+def concat_shuffle_split(inputs: list):
     _x = Concatenate()(inputs)
     _x = channel_shuffle(_x)
+    left_path, right_path = tf.split(_x, num_or_size_splits=2, axis=3)
 
-    return _x
+    return left_path, right_path
 
 
 def basic_unit(inputs: tf.Tensor,
                rate: int = 1,
                weight_decay: float = WEIGHT_DECAY):
-    splits = tf.split(inputs, num_or_size_splits=2, axis=3)
-
-    in_channels = splits[0].shape[-1]
+    in_channels = inputs.shape[-1]
 
     _x = Conv2D(in_channels,
                 kernel_size=1,
                 strides=1,
                 padding="same",
                 activation="relu",
-                kernel_regularizer=keras.regularizers.l2(weight_decay))(
-                    splits[1])
+                kernel_regularizer=keras.regularizers.l2(weight_decay))(inputs)
     _x = batch_norm(_x)
     _x = DepthwiseConv2D(kernel_size=3,
                          strides=1,
@@ -128,8 +124,6 @@ def basic_unit(inputs: tf.Tensor,
                 activation="relu",
                 kernel_regularizer=keras.regularizers.l2(weight_decay))(_x)
     _x = batch_norm(_x)
-
-    _x = concat_shuffle([splits[0], _x])
 
     return _x
 
@@ -187,13 +181,16 @@ def shufflenet_v2_base(inputs: tf.Tensor,
                                            current_rate, output_stride)
 
             with tf.name_scope(layer["scope"]):
-                _x = basic_unit_with_downsampling(_x,
-                                                  layer["out_channels"],
-                                                  stride=stride,
-                                                  rate=rate,
-                                                  weight_decay=weight_decay)
+                left_path, right_path = basic_unit_with_downsampling(
+                    _x,
+                    layer["out_channels"],
+                    stride=stride,
+                    rate=rate,
+                    weight_decay=weight_decay)
                 for _ in range(layer["num_units"]):
-                    _x = basic_unit(_x, rate=rate, weight_decay=weight_decay)
+                    left_path, right_path = concat_shuffle_split([left_path, right_path])
+                    left_path = basic_unit(left_path, rate=rate, weight_decay=weight_decay)
+                _x = Concatenate()([left_path, right_path])
 
             current_stride *= stride
             current_rate *= rate

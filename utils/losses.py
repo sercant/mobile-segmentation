@@ -40,7 +40,7 @@ class LovaszSoftmax(tf.losses.Loss):
 
     @tf.function
     def call(self, y_true: tf.Tensor, y_pred: tf.Tensor, *args, **kwargs):
-        y_pred = tf.softmax(y_pred)
+        y_pred = tf.nn.softmax(y_pred)
 
         loss = lovasz_softmax(y_pred,
                               y_true,

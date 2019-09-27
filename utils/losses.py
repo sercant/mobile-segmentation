@@ -51,6 +51,7 @@ class LovaszSoftmax(tf.losses.Loss):
         return loss
 
 
+@tf.function
 def lovasz_grad(gt_sorted):
     """
     Computes gradient of the Lovasz extension w.r.t sorted errors
@@ -67,6 +68,7 @@ def lovasz_grad(gt_sorted):
 # --------------------------- BINARY LOSSES ---------------------------
 
 
+@tf.function
 def lovasz_hinge(logits, labels, per_image=True, ignore=None):
     """
     Binary Lovasz hinge loss
@@ -77,6 +79,7 @@ def lovasz_hinge(logits, labels, per_image=True, ignore=None):
     """
     if per_image:
 
+        @tf.function
         def treat_image(log_lab):
             log, lab = log_lab
             log, lab = tf.expand_dims(log, 0), tf.expand_dims(lab, 0)
@@ -91,6 +94,7 @@ def lovasz_hinge(logits, labels, per_image=True, ignore=None):
     return loss
 
 
+@tf.function
 def lovasz_hinge_flat(logits, labels):
     """
     Binary Lovasz hinge loss
@@ -98,6 +102,7 @@ def lovasz_hinge_flat(logits, labels):
       labels: [P] Tensor, binary ground truth labels (0 or 1)
       ignore: label to ignore
     """
+    @tf.function
     def compute_loss():
         labelsf = tf.cast(labels, logits.dtype)
         signs = 2. * labelsf - 1.
@@ -121,6 +126,7 @@ def lovasz_hinge_flat(logits, labels):
     return loss
 
 
+@tf.function
 def flatten_binary_scores(scores, labels, ignore=None):
     """
     Flattens predictions in the batch (binary case)
@@ -139,6 +145,7 @@ def flatten_binary_scores(scores, labels, ignore=None):
 # --------------------------- MULTICLASS LOSSES ---------------------------
 
 
+@tf.function
 def lovasz_softmax(probas,
                    labels,
                    classes='present',
@@ -157,6 +164,7 @@ def lovasz_softmax(probas,
     """
     if per_image:
 
+        @tf.function
         def treat_image(prob_lab):
             prob, lab = prob_lab
             prob, lab = tf.expand_dims(prob, 0), tf.expand_dims(lab, 0)
@@ -171,6 +179,7 @@ def lovasz_softmax(probas,
     return loss
 
 
+@tf.function
 def lovasz_softmax_flat(probas, labels, classes='present'):
     """
     Multi-class Lovasz-Softmax loss
@@ -214,6 +223,7 @@ def lovasz_softmax_flat(probas, labels, classes='present'):
     return loss
 
 
+@tf.function
 def flatten_probas(probas, labels, ignore=None, order='BHWC'):
     """
     Flattens predictions in the batch

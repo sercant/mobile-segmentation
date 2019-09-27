@@ -3,17 +3,14 @@ import tensorflow.keras as keras
 from tensorflow.keras import layers
 from tensorflow.keras.layers import AveragePooling2D, BatchNormalization, Conv2D, Concatenate, DepthwiseConv2D
 
-# This is to fix the bug of https://github.com/tensorflow/tensorflow/issues/27298
-# if it gets fixed remove the related lines
-from tensorflow.python.keras.backend import get_graph
-
 BATCH_NORM_PARAMS = {'decay': 0.9997, 'epsilon': 1e-5}
 WEIGHT_DECAY = 0.00004
 
 
 def batch_norm(inputs: tf.Tensor):
     _x = BatchNormalization(momentum=BATCH_NORM_PARAMS['decay'],
-                            epsilon=BATCH_NORM_PARAMS['epsilon'])(inputs)
+                            epsilon=BATCH_NORM_PARAMS['epsilon'],
+                            fused=True)(inputs)
 
     return _x
 

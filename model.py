@@ -4,17 +4,13 @@ from tensorflow.keras import layers
 from core.shufflenet_v2 import shufflenet_v2_base
 from core.encoder_heads import dpc_head, basic_head
 
-# This is to fix the bug of https://github.com/tensorflow/tensorflow/issues/27298
-# if it gets fixed remove the related lines
-from tensorflow.python.keras.backend import get_graph
-
 BATCH_NORM_PARAMS = {'decay': 0.9997, 'epsilon': 1e-5}
 
 
 def batch_norm(inputs: tf.Tensor):
-    _x = layers.BatchNormalization(
-        momentum=BATCH_NORM_PARAMS['decay'],
-        epsilon=BATCH_NORM_PARAMS['epsilon'])(inputs)
+    _x = layers.BatchNormalization(momentum=BATCH_NORM_PARAMS['decay'],
+                                   epsilon=BATCH_NORM_PARAMS['epsilon'],
+                                   fused=True)(inputs)
 
     return _x
 
@@ -64,8 +60,7 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
                 strides=1,
                 activation="relu",
                 padding="same",
-                kernel_regularizer=keras.regularizers.l2(weight_decay))(
-                    branch)
+                kernel_regularizer=keras.regularizers.l2(weight_decay))(branch)
             branch = batch_norm(branch)
 
             shape = tf.add(_x.shape[1:3], -1)
@@ -87,8 +82,7 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
                     strides=1,
                     padding="same",
                     activation="relu",
-                    kernel_regularizer=keras.regularizers.l2(
-                        weight_decay))(_x)
+                    kernel_regularizer=keras.regularizers.l2(weight_decay))(_x)
                 _x = batch_norm(_x)
 
     with tf.name_scope("logits"):
@@ -116,7 +110,7 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
 if __name__ == "__main__":
     inputs = keras.Input(shape=[513, 513, 3])
     output = shufflenet_v2_segmentation(inputs,
-                                        21,
+                                        151,
                                         16,
                                         use_dpc=False,
                                         decoder_stride=8,

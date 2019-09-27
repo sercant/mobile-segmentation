@@ -4,17 +4,14 @@ from tensorflow.keras.layers import (Conv2D, BatchNormalization, MaxPool2D,
                                      DepthwiseConv2D, Concatenate, Reshape,
                                      Permute, Concatenate, Lambda)
 
-# This is to fix the bug of https://github.com/tensorflow/tensorflow/issues/27298
-# if it gets fixed remove the related lines
-from tensorflow.python.keras.backend import get_graph
-
 BATCH_NORM_PARAMS = {'decay': 0.997, 'epsilon': 1e-5}
 WEIGHT_DECAY = 0.00004
 
 
 def batch_norm(inputs: tf.Tensor):
     _x = BatchNormalization(momentum=BATCH_NORM_PARAMS['decay'],
-                            epsilon=BATCH_NORM_PARAMS['epsilon'])(inputs)
+                            epsilon=BATCH_NORM_PARAMS['epsilon'],
+                            fused=True)(inputs)
 
     return _x
 
@@ -117,6 +114,7 @@ def basic_unit(inputs: tf.Tensor,
                          strides=1,
                          dilation_rate=rate,
                          padding="same")(_x)
+    _x = batch_norm(_x)
     _x = Conv2D(in_channels,
                 kernel_size=1,
                 strides=1,
@@ -188,8 +186,11 @@ def shufflenet_v2_base(inputs: tf.Tensor,
                     rate=rate,
                     weight_decay=weight_decay)
                 for _ in range(layer["num_units"]):
-                    left_path, right_path = concat_shuffle_split([left_path, right_path])
-                    left_path = basic_unit(left_path, rate=rate, weight_decay=weight_decay)
+                    left_path, right_path = concat_shuffle_split(
+                        [left_path, right_path])
+                    left_path = basic_unit(left_path,
+                                           rate=rate,
+                                           weight_decay=weight_decay)
                 _x = Concatenate()([left_path, right_path])
 
             current_stride *= stride
@@ -271,6 +272,6 @@ if __name__ == "__main__":
     output = shufflenet_v2(inputs, 10, 1.0)
 
     model = keras.Model(inputs=inputs, outputs=output)
-    model.load_weights('./checkpoints/cifar10.h5')
+    # model.load_weights('./checkpoints/cifar10.h5')
 
     model.summary()

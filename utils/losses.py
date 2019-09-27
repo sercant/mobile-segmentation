@@ -6,7 +6,6 @@ Maxim Berman 2018 ESAT-PSI KU Leuven (MIT License)
 from __future__ import print_function, division
 
 import tensorflow as tf
-import numpy as np
 
 
 class SoftmaxCrossEntropy(tf.losses.Loss):
@@ -30,6 +29,25 @@ class SoftmaxCrossEntropy(tf.losses.Loss):
 
         loss = tf.compat.v1.losses.softmax_cross_entropy(
             one_hot_labels, y_pred, weights=not_ignore_mask)
+        return loss
+
+
+class LovaszSoftmax(tf.losses.Loss):
+    def __init__(self, num_classes: int, ignore_label: int, *args, **kwargs):
+        super(LovaszSoftmax, self).__init__(*args, **kwargs)
+        self.num_classes = num_classes
+        self.ignore_label = ignore_label
+
+    @tf.function
+    def call(self, y_true: tf.Tensor, y_pred: tf.Tensor, *args, **kwargs):
+        y_pred = tf.softmax(y_pred)
+
+        loss = lovasz_softmax(y_pred,
+                              y_true,
+                              classes='present',
+                              per_image=False,
+                              ignore=self.ignore_label)
+
         return loss
 
 

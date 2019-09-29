@@ -4,19 +4,21 @@ from tensorflow import keras
 from dataset import get_dataset
 from preprocess import preprocess
 from model import shufflenet_v2_segmentation
-from utils.losses import SoftmaxCrossEntropy
+from utils.losses import SoftmaxCrossEntropy, LovaszSoftmax
 from utils.metrics import IgnoreLabeledMeanIoU
 
 
 def train():
-    dataset_name = "ade20k"
-    dataset_dir = "data/ade20k/tfrecord/"
-    dataset_split = "train"
-    batch_size = 8
+    dataset_name = "cityscapes"
+    dataset_dir = "./data/research/cityscapes/tfrecord"
+    dataset_split = "train_extra"
+    batch_size = 12
     input_size = [513, 513]
     use_dpc = False
     decoder_stride = 8
-    num_epochs = 100
+    num_epochs = 50
+    initial_lr = 0.001
+    small_backend = False
     restore_weights_from = './checkpoints/model_small.h5'
 
     dataset, dataset_desc = get_dataset(dataset_name, dataset_split,
@@ -36,8 +38,9 @@ def train():
     inputs = keras.Input(shape=(input_size[0], input_size[1], 3))
     outputs = shufflenet_v2_segmentation(inputs,
                                          dataset_desc.num_classes,
-                                         filter_per_encoder_branch=128,
-                                         use_dpc=use_dpc)
+                                         filter_per_encoder_branch=128 if small_backend else 256,
+                                         use_dpc=use_dpc,
+                                         small_backend=small_backend)
     model = keras.Model(inputs=inputs, outputs=outputs)
     if restore_weights_from is not None:
         model.load_weights(restore_weights_from,
@@ -50,7 +53,7 @@ def train():
                                           dataset_desc.ignore_label)
 
     learning_rate_fn = tf.keras.optimizers.schedules.PolynomialDecay(
-        0.01,
+        initial_lr,
         round(dataset_desc.splits_to_sizes[dataset_split] / batch_size) *
         num_epochs,
         0.0,
@@ -58,9 +61,9 @@ def train():
     optimizer = keras.optimizers.Adam(learning_rate=learning_rate_fn)
 
     model_checkpoint = keras.callbacks.ModelCheckpoint(
-        './checkpoints/{}_ds{}_b{}_epoch{}.h5'.format(dataset_name,
-                                                      decoder_stride,
-                                                      batch_size, num_epochs),
+        './checkpoints/{}_{}_{}_ds{}_b{}_epoch{}.h5'.format(
+            dataset_name, dataset_split, 'small' if small_backend else 'full',
+            decoder_stride, batch_size, num_epochs),
         save_best_only=True,
         verbose=True)
 

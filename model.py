@@ -37,11 +37,13 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
                                weight_decay: float = 0.00004,
                                filter_per_encoder_branch: int = 256,
                                decoder_stride: int = None,
-                               feature_extractor_checkpoint: str = None):
+                               feature_extractor_checkpoint: str = None,
+                               small_backend: bool = False):
     _x, branch_exits = shufflenet_v2_base(inputs,
                                           feature_extractor_multiplier,
                                           output_stride,
-                                          weight_decay=weight_decay)
+                                          weight_decay=weight_decay,
+                                          small_backend=small_backend)
     if feature_extractor_checkpoint is not None:
         tmp = keras.Model(inputs=inputs, outputs=_x)
         tmp.load_weights(feature_extractor_checkpoint, by_name=True)

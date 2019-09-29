@@ -129,7 +129,8 @@ def basic_unit(inputs: tf.Tensor,
 def shufflenet_v2_base(inputs: tf.Tensor,
                        depth_multiplier: float,
                        output_stride: int = 32,
-                       weight_decay: float = WEIGHT_DECAY):
+                       weight_decay: float = WEIGHT_DECAY,
+                       small_backend: bool = False):
     depth_multipliers = {0.5: 48, 1.0: 116, 1.5: 176, 2.0: 224}
     initial_depth = depth_multipliers[depth_multiplier]
 
@@ -151,7 +152,7 @@ def shufflenet_v2_base(inputs: tf.Tensor,
         },
         {
             "num_units": 3,
-            "out_channels": initial_depth * 2,
+            "out_channels": (initial_depth * 2) if small_backend else None,
             "scope": "stage_4",
             "stride": 2
         },

@@ -57,7 +57,7 @@ def train():
         round(dataset_desc.splits_to_sizes[dataset_split] / batch_size) *
         num_epochs,
         0.0,
-        power=0.9)
+        power=0.6)
     optimizer = keras.optimizers.Adam(learning_rate=learning_rate_fn)
 
     model_checkpoint = keras.callbacks.ModelCheckpoint(

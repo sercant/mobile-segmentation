@@ -18,18 +18,18 @@ class SoftmaxCrossEntropy(tf.losses.Loss):
     def call(self, y_true: tf.Tensor, y_pred: tf.Tensor, *args, **kwargs):
         y_true = tf.cast(y_true, tf.int32)
         y_pred = tf.cast(y_pred, tf.float32)
-        # y_pred = tf.nn.softmax(y_pred)
+        y_pred = tf.nn.softmax(y_pred)
 
-        labels = tf.reshape(y_true, shape=[-1])
-        not_ignore_mask = tf.cast(tf.not_equal(labels, self.ignore_label),
-                                  tf.float32)
-        one_hot_labels = tf.one_hot(labels, self.num_classes)
+        probas = tf.reshape(y_pred, [-1, self.num_classes])
+        labels = tf.reshape(y_true, [-1, ])
 
-        y_pred = tf.reshape(y_pred, shape=[-1, self.num_classes])
+        valid = tf.not_equal(labels, self.ignore_label)
 
-        loss = tf.compat.v1.losses.softmax_cross_entropy(
-            one_hot_labels, y_pred, weights=not_ignore_mask)
-        return loss
+        vprobas = tf.boolean_mask(tensor=probas, mask=valid)
+        vlabels = tf.boolean_mask(tensor=labels, mask=valid)
+        one_hot_labels = tf.one_hot(vlabels, self.num_classes)
+
+        return tf.keras.losses.categorical_crossentropy(one_hot_labels, vprobas)
 
 
 class LovaszSoftmax(tf.losses.Loss):

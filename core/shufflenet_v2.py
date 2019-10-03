@@ -8,74 +8,73 @@ BATCH_NORM_PARAMS = {'decay': 0.997, 'epsilon': 1e-5}
 WEIGHT_DECAY = 0.00004
 
 
-def batch_norm(inputs: tf.Tensor):
-    _x = BatchNormalization(momentum=BATCH_NORM_PARAMS['decay'],
-                            epsilon=BATCH_NORM_PARAMS['epsilon'],
-                            fused=True)(inputs)
-
-    return _x
+def batch_norm():
+    return BatchNormalization(momentum=BATCH_NORM_PARAMS['decay'],
+                              epsilon=BATCH_NORM_PARAMS['epsilon'])
 
 
-def entry_layer(inputs: tf.Tensor, weight_decay: float = WEIGHT_DECAY):
-    with tf.name_scope("entry_layer"):
-        _x = Conv2D(
-            24,
-            kernel_size=3,
-            strides=2,
-            padding="same",
-            activation="relu",
-            kernel_regularizer=keras.regularizers.l2(weight_decay))(inputs)
-        _x = batch_norm(_x)
-        _x = MaxPool2D(padding="same")(_x)
+def entry_layer(weight_decay: float = WEIGHT_DECAY):
+    return keras.Sequential(
+        # name='entry_layer',
+        layers=[
+            Conv2D(24,
+                   kernel_size=3,
+                   strides=2,
+                   padding="same",
+                   activation="relu",
+                   kernel_regularizer=keras.regularizers.l2(weight_decay)),
+            batch_norm(),
+            MaxPool2D(padding="same")
+        ])
 
-    return _x
 
-
-def basic_unit_with_downsampling(inputs: tf.Tensor,
+def basic_unit_with_downsampling(in_channels: int,
                                  out_channels: int = None,
                                  stride: int = 2,
                                  rate: int = 1,
                                  weight_decay: float = WEIGHT_DECAY):
-    in_channels = inputs.shape[-1]
     out_channels = 2 * in_channels if out_channels is None else out_channels
-
-    # right path
-    right_path = Conv2D(
-        in_channels,
-        kernel_size=1,
-        strides=1,
-        padding="same",
-        activation="relu",
-        kernel_regularizer=keras.regularizers.l2(weight_decay))(inputs)
-    right_path = batch_norm(right_path)
-    right_path = DepthwiseConv2D(kernel_size=3,
-                                 strides=stride,
-                                 dilation_rate=rate,
-                                 padding="same")(right_path)
-    right_path = batch_norm(right_path)
-    right_path = Conv2D(
-        out_channels // 2,
-        kernel_size=1,
-        strides=1,
-        padding="same",
-        activation="relu",
-        kernel_regularizer=keras.regularizers.l2(weight_decay))(right_path)
-    right_path = batch_norm(right_path)
+    right_path = keras.Sequential(
+        # name='downsampling_right_path',
+        layers=[
+            Conv2D(in_channels,
+                   kernel_size=1,
+                   strides=1,
+                   padding="same",
+                   activation="relu",
+                   kernel_regularizer=keras.regularizers.l2(weight_decay)),
+            batch_norm(),
+            DepthwiseConv2D(kernel_size=3,
+                            strides=stride,
+                            dilation_rate=rate,
+                            padding="same"),
+            batch_norm(),
+            Conv2D(out_channels // 2,
+                   kernel_size=1,
+                   strides=1,
+                   padding="same",
+                   activation="relu",
+                   kernel_regularizer=keras.regularizers.l2(weight_decay)),
+            batch_norm()
+        ])
 
     # left path
-    left_path = DepthwiseConv2D(kernel_size=3,
-                                strides=stride,
-                                dilation_rate=rate,
-                                padding="same")(inputs)
-    left_path = batch_norm(left_path)
-    left_path = Conv2D(
-        out_channels // 2,
-        kernel_size=1,
-        strides=1,
-        padding="same",
-        activation="relu",
-        kernel_regularizer=keras.regularizers.l2(weight_decay))(left_path)
-    left_path = batch_norm(left_path)
+    left_path = keras.Sequential(
+        # name='downsampling_left_path',
+        layers=[
+            DepthwiseConv2D(kernel_size=3,
+                            strides=stride,
+                            dilation_rate=rate,
+                            padding="same"),
+            batch_norm(),
+            Conv2D(out_channels // 2,
+                   kernel_size=1,
+                   strides=1,
+                   padding="same",
+                   activation="relu",
+                   kernel_regularizer=keras.regularizers.l2(weight_decay)),
+            batch_norm()
+        ])
 
     return left_path, right_path
 
@@ -98,32 +97,32 @@ def concat_shuffle_split(inputs: list):
     return left_path, right_path
 
 
-def basic_unit(inputs: tf.Tensor,
+def basic_unit(in_channels: int,
                rate: int = 1,
                weight_decay: float = WEIGHT_DECAY):
-    in_channels = inputs.shape[-1]
-
-    _x = Conv2D(in_channels,
-                kernel_size=1,
-                strides=1,
-                padding="same",
-                activation="relu",
-                kernel_regularizer=keras.regularizers.l2(weight_decay))(inputs)
-    _x = batch_norm(_x)
-    _x = DepthwiseConv2D(kernel_size=3,
-                         strides=1,
-                         dilation_rate=rate,
-                         padding="same")(_x)
-    _x = batch_norm(_x)
-    _x = Conv2D(in_channels,
-                kernel_size=1,
-                strides=1,
-                padding="same",
-                activation="relu",
-                kernel_regularizer=keras.regularizers.l2(weight_decay))(_x)
-    _x = batch_norm(_x)
-
-    return _x
+    return keras.Sequential(
+        # name='basic_unit',
+        layers=[
+            Conv2D(in_channels,
+                   kernel_size=1,
+                   strides=1,
+                   padding="same",
+                   activation="relu",
+                   kernel_regularizer=keras.regularizers.l2(weight_decay)),
+            batch_norm(),
+            DepthwiseConv2D(kernel_size=3,
+                            strides=1,
+                            dilation_rate=rate,
+                            padding="same"),
+            batch_norm(),
+            Conv2D(in_channels,
+                   kernel_size=1,
+                   strides=1,
+                   padding="same",
+                   activation="relu",
+                   kernel_regularizer=keras.regularizers.l2(weight_decay)),
+            batch_norm()
+        ])
 
 
 def shufflenet_v2_base(inputs: tf.Tensor,
@@ -169,7 +168,7 @@ def shufflenet_v2_base(inputs: tf.Tensor,
     brach_exits = {}
 
     with tf.name_scope("shufflenet_v2"):
-        _x = entry_layer(inputs, weight_decay)
+        _x = entry_layer(weight_decay)(inputs)
 
         current_stride = 4
         current_rate = 1
@@ -181,18 +180,21 @@ def shufflenet_v2_base(inputs: tf.Tensor,
                                            current_rate, output_stride)
 
             with tf.name_scope(layer["scope"]):
-                left_path, right_path = basic_unit_with_downsampling(
-                    _x,
+                left_path_model, right_path_model = basic_unit_with_downsampling(
+                    _x.shape[-1],
                     layer["out_channels"],
                     stride=stride,
                     rate=rate if rate == old_rate else old_rate,
                     weight_decay=weight_decay)
+                left_path = left_path_model(_x)
+                right_path = right_path_model(_x)
+
                 for _ in range(layer["num_units"]):
                     left_path, right_path = concat_shuffle_split(
                         [left_path, right_path])
-                    left_path = basic_unit(left_path,
+                    left_path = basic_unit(left_path.shape[-1],
                                            rate=rate,
-                                           weight_decay=weight_decay)
+                                           weight_decay=weight_decay)(left_path)
                 _x = Concatenate()([left_path, right_path])
 
             current_stride *= stride

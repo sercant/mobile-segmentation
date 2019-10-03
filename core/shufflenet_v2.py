@@ -176,6 +176,7 @@ def shufflenet_v2_base(inputs: tf.Tensor,
         brach_exits[str(current_stride)] = _x
         for i in range(3):
             layer = layer_info[i]
+            old_rate = current_rate
             stride, rate = stride_handling(layer["stride"], current_stride,
                                            current_rate, output_stride)
 
@@ -184,7 +185,7 @@ def shufflenet_v2_base(inputs: tf.Tensor,
                     _x,
                     layer["out_channels"],
                     stride=stride,
-                    rate=rate,
+                    rate=rate if rate == old_rate else old_rate,
                     weight_decay=weight_decay)
                 for _ in range(layer["num_units"]):
                     left_path, right_path = concat_shuffle_split(
@@ -270,9 +271,10 @@ if __name__ == "__main__":
     # model.save("model.h5")
 
     inputs = keras.Input(shape=(32, 32, 3))
-    output = shufflenet_v2(inputs, 10, 1.0)
+    output = shufflenet_v2_base(inputs, 1.0, 16)
 
     model = keras.Model(inputs=inputs, outputs=output)
     # model.load_weights('./checkpoints/cifar10.h5')
 
     model.summary()
+    model.save('./checkpoints/sufflenetv2_base.h5')

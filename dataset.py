@@ -118,9 +118,6 @@ def get_dataset(dataset_name: str,
             inputs[key] = decoder_func(example[internal_key])
         return inputs
 
-    files = tf.io.matching_files(
-        os.path.join(dataset_dir, FILE_PATTERN % split_name))
-
     if interleave:
         files = tf.data.Dataset.list_files(
             os.path.join(dataset_dir, FILE_PATTERN.format(split_name)))

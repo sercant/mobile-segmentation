@@ -72,7 +72,7 @@ _DATASETS_INFORMATION = {
 }
 
 # Default file pattern of TFRecord of TensorFlow Example.
-FILE_PATTERN = '%s-*'
+FILE_PATTERN = '{}-*.tfrecord'
 
 # Specify how the TF-Examples are decoded.
 FEATURE_DESCRIPTION = {
@@ -101,7 +101,10 @@ ITEMS_TO_HANDLERS = {
 }
 
 
-def get_dataset(dataset_name: str, split_name: str, dataset_dir: str):
+def get_dataset(dataset_name: str,
+                split_name: str,
+                dataset_dir: str,
+                interleave: bool = True):
     if dataset_name not in _DATASETS_INFORMATION:
         raise ValueError('The specified dataset is not supported yet.')
 
@@ -118,14 +121,24 @@ def get_dataset(dataset_name: str, split_name: str, dataset_dir: str):
     files = tf.io.matching_files(
         os.path.join(dataset_dir, FILE_PATTERN % split_name))
 
-    _dataset = tf.data.TFRecordDataset(files)
+    if interleave:
+        files = tf.data.Dataset.list_files(
+            os.path.join(dataset_dir, FILE_PATTERN.format(split_name)))
+        _dataset = files.interleave(
+            tf.data.TFRecordDataset,
+            num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    else:
+        _dataset = tf.data.TFRecordDataset(
+            os.path.join(dataset_dir, FILE_PATTERN.format(split_name)))
+
     _dataset = _dataset.map(_parse_to_items)
 
     return _dataset, _DATASETS_INFORMATION[dataset_name]
 
 
 if __name__ == "__main__":
-    dataset, dataset_description = get_dataset("coco", "val", "./data/coco/tfrecord")
+    dataset, dataset_description = get_dataset("coco", "val",
+                                               "./data/coco/tfrecord")
 
     for item in dataset.take(10):
         print(item)

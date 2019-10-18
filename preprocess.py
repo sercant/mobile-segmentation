@@ -2,79 +2,136 @@ import tensorflow as tf
 
 
 @tf.function
-def flip_dim(tensor_list: list, prob: float = 0.5, dim: int = 1):
-    random_value = tf.random.uniform([])
+def get_random_scale(min_val: float, max_val: float, step: float):
+    if min_val < 0 or min_val > max_val:
+        raise ValueError('Unexpected value of min_val.')
+
+    if min_val == max_val:
+        return tf.cast(min_val, tf.float32)
+
+    # When step = 0, we sample the value uniformly from [min, max).
+    if step == 0:
+        return tf.random.uniform([], minval=min_val, maxval=max_val)
+
+    # When step != 0, we randomly select one discrete value from [min, max].
+    num_steps = int((max_val - min_val) / step + 1)
+    scale_factors = tf.linspace(min_val, max_val, num_steps)
+    shuffled_scale_factors = tf.random.shuffle(scale_factors)
+    return shuffled_scale_factors[0]
+
+
+@tf.function
+def scale(image: tf.Tensor, label: tf.Tensor, scale: float):
+    if scale == 1.0:
+        return image, label
+
+    im_shape = tf.cast(tf.shape(image), tf.float32)
+    _target_height, _target_width = tf.cast(im_shape[0] * scale,
+                                            tf.int32), tf.cast(
+                                                im_shape[1] * scale, tf.int32)
+    image = tf.image.resize_with_pad(image,
+                                     _target_height,
+                                     _target_width,
+                                     method="bilinear")
+    if label is not None:
+        label = tf.image.resize_with_pad(label,
+                                         _target_height,
+                                         _target_width,
+                                         method="nearest")
+
+    return image, label
+
+
+@tf.function
+def pad_to_bounding_box(image: tf.Tensor, target_height: int,
+                        target_width: int, value: float):
+    image = image - value
+    image = tf.image.pad_to_bounding_box(image, 0, 0, target_height,
+                                         target_width)
+    image = image + value
+
+    return image
+
+
+@tf.function
+def random_crop(image: tf.Tensor, label: tf.Tensor, crop_height: int,
+                crop_width: int):
+    im_shape = tf.shape(image)
+
+    max_offset_height = tf.cast(im_shape[0] - crop_height + 1, tf.int32)
+    max_offset_width = tf.cast(im_shape[1] - crop_width + 1, tf.int32)
+
+    offset_height = tf.random.uniform([],
+                                      maxval=max_offset_height,
+                                      dtype=tf.int32)
+    offset_width = tf.random.uniform([],
+                                     maxval=max_offset_width,
+                                     dtype=tf.int32)
 
     @tf.function
-    def flip():
-        flipped = []
-        for tensor in tensor_list:
-            flipped.append(tf.reverse(tensor, [dim]))
-        return flipped
+    def _crop(image: tf.Tensor, offset_height: int, offset_width: int,
+              target_height: int, target_width: int):
+        if image is None:
+            return None
+        return tf.image.crop_to_bounding_box(image, offset_height,
+                                             offset_width, target_height,
+                                             target_width)
 
-    outputs = tf.cond(pred=tf.less_equal(random_value, prob),
-                      true_fn=flip,
-                      false_fn=lambda: tensor_list)
-    if not isinstance(outputs, (list, tuple)):
-        outputs = [outputs]
-
-    return outputs
+    return _crop(image, offset_height, offset_width, crop_height,
+                 crop_width), _crop(label, offset_height, offset_width,
+                                    crop_height, crop_width)
 
 
 @tf.function
-def resize_with_pad(image: tf.Tensor,
-                    target_height: int,
-                    target_width: int,
-                    pad_value: float,
-                    method=tf.image.ResizeMethod.BILINEAR):
-    _in_type = image.dtype
-    assert _in_type in (tf.float32, tf.int32)
+def _preprocess(image: tf.Tensor, label: tf.Tensor, crop_height: int,
+                crop_width: int, min_scale: float, max_scale: float,
+                scale_step: float, mean_pixel_val: (float, list),
+                ignore_label: int, is_training: bool):
+    if is_training:
+        rand_scale = get_random_scale(min_scale, max_scale, scale_step)
+        image, label = scale(image, label, rand_scale)
 
-    image = image - pad_value
-    image = tf.image.resize_with_pad(image,
-                                     target_height,
-                                     target_width,
-                                     method=method)
-    image = image + pad_value
+    im_shape = tf.shape(image)
+    target_height = im_shape[0] + tf.maximum(crop_height - im_shape[0], 0)
+    target_width = im_shape[1] + tf.maximum(crop_width - im_shape[1], 0)
 
-    return tf.cast(image, _in_type)
-
-
-@tf.function
-def resize_to_range(image: tf.Tensor,
-                    label: tf.Tensor = None,
-                    target_height: int = 0,
-                    target_width: int = 0,
-                    image_pad_value: float = 127.5,
-                    label_pad_value: int = 255):
-    image = resize_with_pad(image, target_height, target_width,
-                            image_pad_value)
+    image = pad_to_bounding_box(image, target_height, target_width,
+                                mean_pixel_val)
     if label is not None:
-        label = resize_with_pad(label,
-                                target_height,
-                                target_width,
-                                label_pad_value,
-                                method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-    return image, tf.cast(label, tf.int32)
+        label = pad_to_bounding_box(label, target_height, target_width,
+                                    ignore_label)
+
+    if is_training:
+        image, label = random_crop(image, label, crop_height, crop_width)
+
+        if tf.random.uniform(()) > 0.5:
+            image = tf.image.flip_left_right(image)
+            if label is not None:
+                label = tf.image.flip_left_right(label)
+
+    return image, label
 
 
 def preprocess(input_size: list,
                image_pad_val: float = 127.5,
+               min_scale: float = 0.5,
+               max_scale: float = 2.0,
+               scale_step: float = 0.5,
                is_training: bool = True,
                ignore_label: int = 255):
     @tf.function
     def _func(inputs: dict):
         image = tf.cast(inputs['image'], tf.float32)
         label = inputs['labels_class']
+
         if label is not None:
             label = tf.cast(label, tf.int32)
 
-        if is_training:
-            image, label = flip_dim([image, label])
-        image, label = resize_to_range(image, label, input_size[0],
-                                       input_size[1], image_pad_val,
-                                       ignore_label)
-        image = image / 255.0 - 1.0
+        image, label = _preprocess(image, label, input_size[0], input_size[1],
+                                   min_scale, max_scale, scale_step,
+                                   image_pad_val, ignore_label, is_training)
+        image = image / 255.0
+
         return image, label
 
     return _func

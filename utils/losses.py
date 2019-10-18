@@ -6,6 +6,26 @@ Maxim Berman 2018 ESAT-PSI KU Leuven (MIT License)
 from __future__ import print_function, division
 
 import tensorflow as tf
+from tensorflow import keras
+
+
+def sparse_categorical_crossentropy(ignore_label: int = 255):
+    @tf.function
+    def _func(y_true, y_pred):
+        _ke = keras.backend
+        ignored_y_true = tf.where(_ke.equal(y_true, ignore_label),
+                                  _ke.zeros_like(y_true), y_true)
+
+        _ignore_mask = _ke.cast(
+            _ke.squeeze(_ke.not_equal(y_true, ignore_label), axis=-1),
+            'float32')
+
+        y_pred = tf.nn.softmax(y_pred)
+        _loss = keras.losses.sparse_categorical_crossentropy(
+            ignored_y_true, y_pred)
+        return _loss * _ignore_mask
+
+    return _func
 
 
 class SoftmaxCrossEntropy(tf.losses.Loss):
@@ -21,7 +41,9 @@ class SoftmaxCrossEntropy(tf.losses.Loss):
         y_pred = tf.nn.softmax(y_pred)
 
         probas = tf.reshape(y_pred, [-1, self.num_classes])
-        labels = tf.reshape(y_true, [-1, ])
+        labels = tf.reshape(y_true, [
+            -1,
+        ])
 
         valid = tf.not_equal(labels, self.ignore_label)
 
@@ -29,7 +51,8 @@ class SoftmaxCrossEntropy(tf.losses.Loss):
         vlabels = tf.boolean_mask(tensor=labels, mask=valid)
         one_hot_labels = tf.one_hot(vlabels, self.num_classes)
 
-        return tf.keras.losses.categorical_crossentropy(one_hot_labels, vprobas)
+        return tf.keras.losses.categorical_crossentropy(
+            one_hot_labels, vprobas)
 
 
 class LovaszSoftmax(tf.losses.Loss):

@@ -1,30 +1,42 @@
 import tensorflow as tf
+from tensorflow import keras
 
 
-class IgnoreLabeledMeanIoU(tf.metrics.MeanIoU):
-    def __init__(self,
-                 num_classes: int,
-                 ignore_label: int,
-                 name=None,
-                 dtype=None):
-        super(IgnoreLabeledMeanIoU, self).__init__(num_classes=num_classes,
-                                                   name=name,
-                                                   dtype=dtype)
+class WeightedSparseMeanIoU(keras.metrics.MeanIoU):
+    def __init__(self, num_classes: int, ignore_label: int = 255):
+        super(WeightedSparseMeanIoU, self).__init__(num_classes=num_classes)
         self.ignore_label = ignore_label
 
-    @tf.function
-    def update_state(self, y_true: tf.Tensor, y_pred: tf.Tensor,
-                     sample_weight):
-        y_true = tf.cast(y_true, tf.int32)
-        y_pred = tf.cast(y_pred, tf.float32)
-        y_pred = tf.argmax(y_pred, axis=-1)
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        _ke = keras.backend
+        ignored_y_true = tf.where(_ke.equal(y_true, self.ignore_label),
+                                  _ke.zeros_like(y_true), y_true)
 
-        _predictions = tf.reshape(y_pred, shape=[-1])
-        _labels = tf.reshape(y_true, shape=[-1])
-        _weights = tf.cast(tf.not_equal(_labels, self.ignore_label),
-                           tf.float32)
-        _labels = tf.where(tf.equal(_labels, self.ignore_label),
-                           tf.zeros_like(_labels), _labels)
+        y_pred = _ke.argmax(y_pred)
 
-        return super(IgnoreLabeledMeanIoU,
-                     self).update_state(_labels, _predictions, _weights)
+        sample_weight = _ke.cast(
+            _ke.squeeze(_ke.not_equal(y_true, self.ignore_label), axis=-1),
+            'float32')
+
+        super(WeightedSparseMeanIoU,
+              self).update_state(ignored_y_true, y_pred, sample_weight)
+
+
+class WeightedAccuracy(keras.metrics.Accuracy):
+    def __init__(self, ignore_label: int = 255):
+        super(WeightedAccuracy, self).__init__()
+        self.ignore_label = ignore_label
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        _ke = keras.backend
+        ignored_y_true = tf.where(_ke.equal(y_true, self.ignore_label),
+                                  _ke.zeros_like(y_true), y_true)
+
+        y_pred = _ke.argmax(y_pred)
+
+        sample_weight = _ke.cast(
+            _ke.squeeze(_ke.not_equal(y_true, self.ignore_label), axis=-1),
+            'float32')
+
+        super(WeightedAccuracy, self).update_state(ignored_y_true, y_pred,
+                                                   sample_weight)

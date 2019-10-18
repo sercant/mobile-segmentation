@@ -91,23 +91,36 @@ def _preprocess(image: tf.Tensor, label: tf.Tensor, crop_height: int,
         rand_scale = get_random_scale(min_scale, max_scale, scale_step)
         image, label = scale(image, label, rand_scale)
 
-    im_shape = tf.shape(image)
-    target_height = im_shape[0] + tf.maximum(crop_height - im_shape[0], 0)
-    target_width = im_shape[1] + tf.maximum(crop_width - im_shape[1], 0)
+        im_shape = tf.shape(image)
+        target_height = im_shape[0] + tf.maximum(crop_height - im_shape[0], 0)
+        target_width = im_shape[1] + tf.maximum(crop_width - im_shape[1], 0)
 
-    image = pad_to_bounding_box(image, target_height, target_width,
-                                mean_pixel_val)
-    if label is not None:
-        label = pad_to_bounding_box(label, target_height, target_width,
-                                    ignore_label)
+        image = pad_to_bounding_box(image, target_height, target_width,
+                                    mean_pixel_val)
+        if label is not None:
+            label = pad_to_bounding_box(label, target_height, target_width,
+                                        ignore_label)
 
-    if is_training:
         image, label = random_crop(image, label, crop_height, crop_width)
 
         if tf.random.uniform(()) > 0.5:
             image = tf.image.flip_left_right(image)
             if label is not None:
                 label = tf.image.flip_left_right(label)
+    else:
+        image = image - mean_pixel_val
+        image = tf.image.resize_with_pad(image,
+                                         crop_height,
+                                         crop_width,
+                                         method="bilinear")
+        image = image + mean_pixel_val
+        if label is not None:
+            label = label - ignore_label
+            label = tf.image.resize_with_pad(label,
+                                             crop_height,
+                                             crop_width,
+                                             method="nearest")
+            label = label + ignore_label
 
     return image, label
 

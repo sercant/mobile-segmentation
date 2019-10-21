@@ -12,8 +12,20 @@ def hard_sigmoid(inputs: tf.Tensor):
     return K.relu(inputs + 3.0, max_value=6.0) / 6.0
 
 
-def hard_swish(inputs: tf.Tensor):
-    return inputs * hard_sigmoid(inputs)  # K.hard_sigmoid(inputs) * inputs
+class HardSwish(layers.Layer):
+    def __init__(self):
+        super(HardSwish, self).__init__()
+
+    def call(self, inputs: tf.Tensor):
+        return inputs * hard_sigmoid(inputs)
+
+
+# def hard_swish():
+#     @tf.function
+#     def _func(inputs: tf.Tensor):
+#         return inputs * hard_sigmoid(inputs)
+
+#     return _func  # K.hard_sigmoid(inputs) * inputs
 
 
 def squeeze_and_excite(inputs: tf.Tensor, ratio: int, name: str):
@@ -30,7 +42,7 @@ def squeeze_and_excite(inputs: tf.Tensor, ratio: int, name: str):
 
 
 # _activation = "relu"
-_activation = hard_swish
+_activation = HardSwish
 
 
 def channel_shuffle(inputs: tf.Tensor, groups: int, name: str):
@@ -63,41 +75,44 @@ def _shuffleNetV2_block(inputs: tf.Tensor, output_channels: int, strides: int,
                                 dilation_rate=rate,
                                 use_bias=False),
                 BatchNormalization(),
-                Conv2D(branch_features,
-                       kernel_size=1,
-                       strides=1,
-                       activation=_activation,
-                       padding="valid",
-                       use_bias=False),
-                #  _activation(),
+                Conv2D(
+                    branch_features,
+                    kernel_size=1,
+                    strides=1,
+                    # activation=_activation,
+                    padding="valid",
+                    use_bias=False),
                 BatchNormalization(),
+                _activation(),
             ])(_x1)
 
     _x2 = Sequential(
         name=f"{name}_branch2",
         layers=[
-            Conv2D(branch_features,
-                   kernel_size=1,
-                   strides=1,
-                   activation=_activation,
-                   padding="valid",
-                   use_bias=False),
-            #  _activation(),
+            Conv2D(
+                branch_features,
+                kernel_size=1,
+                strides=1,
+                # activation=_activation,
+                padding="valid",
+                use_bias=False),
             BatchNormalization(),
+            _activation(),
             DepthwiseConv2D(kernel_size=3,
                             strides=strides,
                             padding="same",
                             dilation_rate=rate,
                             use_bias=False),
             BatchNormalization(),
-            Conv2D(branch_features,
-                   kernel_size=1,
-                   strides=1,
-                   activation=_activation,
-                   padding="valid",
-                   use_bias=False),
-            #  _activation(),
+            Conv2D(
+                branch_features,
+                kernel_size=1,
+                strides=1,
+                # activation=_activation,
+                padding="valid",
+                use_bias=False),
             BatchNormalization(),
+            _activation(),
         ])(_x2)
     if not downsample:
         _x2 = squeeze_and_excite(_x2, 4, name=f"{name}_branch2_se")
@@ -129,14 +144,15 @@ def shufflenet_v2_base(inputs: tf.Tensor,
     _x = Sequential(
         name=f"{prefix}_conv1",
         layers=[
-            Conv2D(output_channels,
-                   kernel_size=3,
-                   strides=2,
-                   activation=_activation,
-                   padding="same",
-                   use_bias=False),
-            # _activation(),
+            Conv2D(
+                output_channels,
+                kernel_size=3,
+                strides=2,
+                # activation=_activation,
+                padding="same",
+                use_bias=False),
             BatchNormalization(),
+            _activation(),
         ])(inputs)
     current_stride *= 2
     branch_exits[str(current_stride)] = _x
@@ -198,14 +214,15 @@ def shufflenet_v2(inputs: tf.Tensor,
     _x = Sequential(
         name=f"{prefix}_conv_last",
         layers=[
-            Conv2D(output_channels,
-                   kernel_size=1,
-                   strides=1,
-                   activation=_activation,
-                   padding="valid",
-                   use_bias=False),
-            # _activation(),
+            Conv2D(
+                output_channels,
+                kernel_size=1,
+                strides=1,
+                # activation=_activation,
+                padding="valid",
+                use_bias=False),
             BatchNormalization(),
+            _activation(),
         ])(_x)
 
     _x = layers.GlobalAveragePooling2D(name=f"{prefix}_global_avg_pool")(_x)
@@ -221,3 +238,9 @@ if __name__ == "__main__":
     outputs = shufflenet_v2(inputs)
     model = keras.Model(inputs=inputs, outputs=outputs)
     model.summary()
+
+    # Convert the model.
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    tflite_model = converter.convert()
+    with open('shufflenet_v2.tflite', 'wb') as f:
+        f.write(tflite_model)

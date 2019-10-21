@@ -52,7 +52,7 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
                        weight_decay=weight_decay,
                        filter_per_branch=filter_per_encoder_branch)
 
-    if decoder_stride != None:
+    if decoder_stride is not None:
         with tf.name_scope("decoder"):
             branch = branch_exits[str(decoder_stride)]
             branch = layers.Conv2D(
@@ -86,24 +86,22 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
                     kernel_regularizer=keras.regularizers.l2(weight_decay))(_x)
                 _x = batch_norm(_x)
 
-    with tf.name_scope("logits"):
-        _x = layers.Conv2D(
-            number_of_classes,
-            kernel_size=1,
-            strides=1,
-            padding="same",
-            kernel_regularizer=keras.regularizers.l2(weight_decay))(_x)
+    _x = layers.Conv2D(number_of_classes,
+                       kernel_size=1,
+                       strides=1,
+                       padding="same",
+                       kernel_regularizer=keras.regularizers.l2(weight_decay),
+                       name="logits")(_x)
 
-        # _x = layers.Dropout(0.1)(_x)
+    # _x = layers.Dropout(0.1)(_x)
 
-        if output_size is not None and len(output_size) != 2:
-            raise ValueError(
-                "Expected output size length of 2 but got {}.".format(
-                    len(output_size)))
-        else:
-            output_size = inputs.shape[1:3]
+    if output_size is not None and len(output_size) != 2:
+        raise ValueError("Expected output size length of 2 but got {}.".format(
+            len(output_size)))
+    else:
+        output_size = inputs.shape[1:3]
 
-        _x = tf.image.resize(_x, output_size)
+    _x = tf.image.resize(_x, output_size)
 
     return _x
 
@@ -111,13 +109,19 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
 if __name__ == "__main__":
     inputs = keras.Input(shape=[513, 513, 3])
     output = shufflenet_v2_segmentation(inputs,
-                                        151,
+                                        19,
                                         16,
                                         use_dpc=False,
-                                        decoder_stride=8,
-                                        filter_per_encoder_branch=128)
+                                        decoder_stride=None,
+                                        filter_per_encoder_branch=256)
 
     model = tf.keras.Model(inputs=inputs, outputs=output)
 
     model.summary()
     model.save("./checkpoints/shufflenet_v2_seg.h5")
+
+    # Convert the model.
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    tflite_model = converter.convert()
+    with open('./checkpoints/shufflenet_v2_seg.tflite', 'wb') as f:
+        f.write(tflite_model)

@@ -242,5 +242,5 @@ if __name__ == "__main__":
     # Convert the model.
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     tflite_model = converter.convert()
-    with open('shufflenet_v2.tflite', 'wb') as f:
+    with open('./checkpoints/shufflenet_v2.tflite', 'wb') as f:
         f.write(tflite_model)

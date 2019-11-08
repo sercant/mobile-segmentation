@@ -3,46 +3,57 @@ import tensorflow.keras as keras
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import (Dense, GlobalAveragePooling2D, Conv2D,
                                      DepthwiseConv2D, BatchNormalization, ReLU,
-                                     Reshape, Permute, Concatenate, Multiply)
+                                     Reshape, Permute, Concatenate, Multiply,
+                                     Lambda)
 import tensorflow.keras.backend as K
 import tensorflow.keras.layers as layers
 
 
 def hard_sigmoid(inputs: tf.Tensor):
-    return K.relu(inputs + 3.0, max_value=6.0) / 6.0
+    return tf.nn.relu6(inputs + 3.0) / 6.0
 
 
 class HardSwish(layers.Layer):
-    def __init__(self):
-        super(HardSwish, self).__init__()
-
     def call(self, inputs: tf.Tensor):
         return inputs * hard_sigmoid(inputs)
 
 
-# def hard_swish():
-#     @tf.function
-#     def _func(inputs: tf.Tensor):
-#         return inputs * hard_sigmoid(inputs)
+class SqueezeAndExcite(layers.Layer):
+    def __init__(self, in_channels: int, ratio: int):
+        super(SqueezeAndExcite, self).__init__()
+        self.in_channels = in_channels
+        self.ratio = ratio
 
-#     return _func  # K.hard_sigmoid(inputs) * inputs
+        self.se = Sequential([
+            GlobalAveragePooling2D(),
+            Dense(in_channels // ratio, activation=tf.nn.relu, use_bias=False),
+            Dense(in_channels, activation=hard_sigmoid, use_bias=False),
+        ])
+        self.merge = Multiply()
+
+    def get_config(self):
+        base_config = super(SqueezeAndExcite, self).get_config()
+        base_config['in_channels'] = self.in_channels
+        base_config['ratio'] = self.ratio
+
+        return base_config
+
+    def call(self, inputs: tf.Tensor):
+        _x = self.se(inputs)
+        _x = self.merge([inputs, _x])
+
+        return _x
 
 
-def squeeze_and_excite(inputs: tf.Tensor, ratio: int, name: str):
-    filter_size = inputs.shape[-1]
-    _x = Sequential(name=name,
-                    layers=[
-                        GlobalAveragePooling2D(),
-                        Dense(filter_size // ratio, activation="relu"),
-                        Dense(filter_size, activation=hard_sigmoid),
-                    ])(inputs)
-    _x = Multiply()([inputs, _x])
-
-    return _x
+class Split(layers.Layer):
+    def call(self, inputs: tf.Tensor):
+        return tf.split(inputs, num_or_size_splits=2, axis=-1)
 
 
 # _activation = "relu"
-_activation = HardSwish
+# _activation = "relu"
+def _activation():
+    return layers.Activation("relu")
 
 
 def channel_shuffle(inputs: tf.Tensor, groups: int, name: str):
@@ -63,59 +74,53 @@ def _shuffleNetV2_block(inputs: tf.Tensor, output_channels: int, strides: int,
                         rate: int, name: str, downsample: bool):
     branch_features = output_channels // 2
 
-    _x1, _x2 = tf.split(inputs, num_or_size_splits=2, axis=-1)
+    if downsample:
+        _x1 = inputs
+        _x2 = inputs
+    else:
+        _x1, _x2 = Split()(inputs)
 
     if downsample:
-        _x1 = Sequential(
-            name=f"{name}_branch1",
-            layers=[
-                DepthwiseConv2D(kernel_size=3,
-                                strides=strides,
-                                padding="same",
-                                dilation_rate=rate,
-                                use_bias=False),
-                BatchNormalization(),
-                Conv2D(
-                    branch_features,
-                    kernel_size=1,
-                    strides=1,
-                    # activation=_activation,
-                    padding="valid",
-                    use_bias=False),
-                BatchNormalization(),
-                _activation(),
-            ])(_x1)
+        _x1 = Sequential(name=f"{name}_branch1",
+                         layers=[
+                             DepthwiseConv2D(kernel_size=3,
+                                             strides=strides,
+                                             padding="same",
+                                             dilation_rate=rate,
+                                             use_bias=False),
+                             BatchNormalization(),
+                             Conv2D(branch_features,
+                                    kernel_size=1,
+                                    strides=1,
+                                    padding="same",
+                                    use_bias=False),
+                             BatchNormalization(),
+                             _activation(),
+                         ])(_x1)
 
-    _x2 = Sequential(
-        name=f"{name}_branch2",
-        layers=[
-            Conv2D(
-                branch_features,
-                kernel_size=1,
-                strides=1,
-                # activation=_activation,
-                padding="valid",
-                use_bias=False),
-            BatchNormalization(),
-            _activation(),
-            DepthwiseConv2D(kernel_size=3,
-                            strides=strides,
-                            padding="same",
-                            dilation_rate=rate,
-                            use_bias=False),
-            BatchNormalization(),
-            Conv2D(
-                branch_features,
-                kernel_size=1,
-                strides=1,
-                # activation=_activation,
-                padding="valid",
-                use_bias=False),
-            BatchNormalization(),
-            _activation(),
-        ])(_x2)
-    if not downsample:
-        _x2 = squeeze_and_excite(_x2, 4, name=f"{name}_branch2_se")
+    _x2 = Sequential(name=f"{name}_branch2",
+                     layers=[
+                         Conv2D(branch_features,
+                                kernel_size=1,
+                                strides=1,
+                                padding="same",
+                                use_bias=False),
+                         BatchNormalization(),
+                         _activation(),
+                         DepthwiseConv2D(kernel_size=3,
+                                         strides=strides,
+                                         padding="same",
+                                         dilation_rate=rate,
+                                         use_bias=False),
+                         BatchNormalization(),
+                         Conv2D(branch_features,
+                                kernel_size=1,
+                                strides=1,
+                                padding="same",
+                                use_bias=False),
+                         BatchNormalization(),
+                         _activation(),
+                     ])(_x2)
 
     _out = Concatenate()([_x1, _x2])
     _out = channel_shuffle(_out, 2, name=f"{name}_shuffle")
@@ -124,7 +129,7 @@ def _shuffleNetV2_block(inputs: tf.Tensor, output_channels: int, strides: int,
 
 
 def shufflenet_v2_base(inputs: tf.Tensor,
-                       stages_repeats: list = [2, 4, 2],
+                       stages_repeats: list = [4, 8, 4],
                        stages_out_channels: list = [24, 116, 232, 464, 1024],
                        output_stride: int = 32,
                        prefix: str = "shufflenet_v2"):
@@ -199,7 +204,7 @@ def shufflenet_v2_base(inputs: tf.Tensor,
 
 def shufflenet_v2(inputs: tf.Tensor,
                   num_classes: int = 1000,
-                  stages_repeats: list = [2, 4, 2],
+                  stages_repeats: list = [4, 8, 4],
                   stages_out_channels: list = [24, 116, 232, 464, 1024],
                   output_stride: int = 32):
     prefix = "shufflenet_v2"
@@ -219,8 +224,7 @@ def shufflenet_v2(inputs: tf.Tensor,
                 kernel_size=1,
                 strides=1,
                 # activation=_activation,
-                padding="valid",
-                use_bias=False),
+                padding="same"),
             BatchNormalization(),
             _activation(),
         ])(_x)

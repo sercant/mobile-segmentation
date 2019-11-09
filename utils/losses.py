@@ -36,37 +36,23 @@ class SoftmaxCrossEntropy(tf.losses.Loss):
 
     @tf.function
     def call(self, y_true: tf.Tensor, y_pred: tf.Tensor, *args, **kwargs):
-        # y_true = tf.cast(y_true, tf.int32)
-        # y_pred = tf.cast(y_pred, tf.float32)
-        # y_pred = tf.nn.softmax(y_pred)
-
-        # probas = tf.reshape(y_pred, [-1, self.num_classes])
-        # labels = tf.reshape(y_true, [
-        #     -1,
-        # ])
-
-        # valid = tf.not_equal(labels, self.ignore_label)
-
-        # vprobas = tf.boolean_mask(tensor=probas, mask=valid)
-        # vlabels = tf.boolean_mask(tensor=labels, mask=valid)
-        # one_hot_labels = tf.one_hot(vlabels, self.num_classes)
-
-        # return tf.keras.losses.categorical_crossentropy(
-        #     one_hot_labels, vprobas)
-
         y_true = tf.cast(y_true, tf.int32)
-        bit_mask = tf.not_equal(y_true, self.ignore_label)
-        # Assign ignore label to background to avoid error when computing
-        # Cross entropy loss.
-        y_true = tf.where(bit_mask, y_true, tf.zeros_like(y_true))
+        y_pred = tf.cast(y_pred, tf.float32)
+        y_pred = tf.nn.softmax(y_pred)
 
-        normalizer = tf.reduce_sum(tf.cast(bit_mask, tf.float32))
-        cross_entropy_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
-            labels=y_true, logits=y_pred)
-        cross_entropy_loss *= tf.cast(bit_mask, tf.float32)
-        loss = tf.reduce_sum(cross_entropy_loss) / normalizer
+        probas = tf.reshape(y_pred, [-1, self.num_classes])
+        labels = tf.reshape(y_true, [
+            -1,
+        ])
 
-        return loss
+        valid = tf.not_equal(labels, self.ignore_label)
+
+        vprobas = tf.boolean_mask(tensor=probas, mask=valid)
+        vlabels = tf.boolean_mask(tensor=labels, mask=valid)
+        one_hot_labels = tf.one_hot(vlabels, self.num_classes)
+
+        return tf.keras.losses.categorical_crossentropy(
+            one_hot_labels, vprobas)
 
 
 class LovaszSoftmax(tf.losses.Loss):

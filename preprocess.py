@@ -129,7 +129,7 @@ def preprocess(input_size: list,
                image_pad_val: float = 127.5,
                min_scale: float = 0.5,
                max_scale: float = 2.0,
-               scale_step: float = 0.5,
+               scale_step: float = 0.25,
                is_training: bool = True,
                ignore_label: int = 255):
     @tf.function

@@ -70,8 +70,12 @@ def channel_shuffle(inputs: tf.Tensor, groups: int, name: str):
     return _x
 
 
-def _shuffleNetV2_block(inputs: tf.Tensor, output_channels: int, strides: int,
-                        rate: int, name: str, downsample: bool):
+def _shuffleNetV2_block(inputs: tf.Tensor,
+                        output_channels: int,
+                        strides: int,
+                        rate: int,
+                        name: str,
+                        downsample: bool):
     branch_features = output_channels // 2
 
     if downsample:
@@ -98,29 +102,32 @@ def _shuffleNetV2_block(inputs: tf.Tensor, output_channels: int, strides: int,
                              _activation(),
                          ])(_x1)
 
-    _x2 = Sequential(name=f"{name}_branch2",
-                     layers=[
-                         Conv2D(branch_features,
-                                kernel_size=1,
-                                strides=1,
-                                padding="same",
-                                use_bias=False),
-                         BatchNormalization(),
-                         _activation(),
-                         DepthwiseConv2D(kernel_size=3,
-                                         strides=strides,
-                                         padding="same",
-                                         dilation_rate=rate,
-                                         use_bias=False),
-                         BatchNormalization(),
-                         Conv2D(branch_features,
-                                kernel_size=1,
-                                strides=1,
-                                padding="same",
-                                use_bias=False),
-                         BatchNormalization(),
-                         _activation(),
-                     ])(_x2)
+    _x2 = Sequential(
+        name=f"{name}_branch2",
+        layers=[
+            Conv2D(inputs.shape[-1] if downsample else branch_features,
+                   kernel_size=1,
+                   strides=1,
+                   padding="same",
+                   use_bias=False),
+            BatchNormalization(),
+            _activation(),
+            DepthwiseConv2D(kernel_size=3,
+                            strides=strides,
+                            padding="same",
+                            dilation_rate=rate,
+                            use_bias=False),
+            BatchNormalization(),
+            #  SqueezeAndExcite(branch_features, 4)
+            #  if not downsample else Lambda(lambda x: x),
+            Conv2D(branch_features,
+                   kernel_size=1,
+                   strides=1,
+                   padding="same",
+                   use_bias=False),
+            BatchNormalization(),
+            _activation(),
+        ])(_x2)
 
     _out = Concatenate()([_x1, _x2])
     _out = channel_shuffle(_out, 2, name=f"{name}_shuffle")

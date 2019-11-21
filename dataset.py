@@ -5,12 +5,12 @@ import tensorflow as tf
 
 @tf.function
 def decode_image(x: tf.Tensor):
-    return tf.io.decode_image(x, channels=3)
+    return tf.image.decode_png(x, channels=3)
 
 
 @tf.function
 def decode_label(x: tf.Tensor):
-    return tf.io.decode_image(x, channels=1)
+    return tf.image.decode_png(x, channels=1)
 
 
 @tf.function

@@ -108,19 +108,27 @@ def _preprocess(image: tf.Tensor, label: tf.Tensor, crop_height: int,
             if label is not None:
                 label = tf.image.flip_left_right(label)
     else:
-        image = image - mean_pixel_val
-        image = tf.image.resize_with_pad(image,
-                                         crop_height,
-                                         crop_width,
-                                         method="bilinear")
-        image = image + mean_pixel_val
-        if label is not None:
-            label = label - ignore_label
-            label = tf.image.resize_with_pad(label,
+        image_shape = tf.shape(image)
+        if image_shape[1] > crop_height or image_shape[2] > crop_width:
+            image = image - mean_pixel_val
+            image = tf.image.resize_with_pad(image,
                                              crop_height,
                                              crop_width,
-                                             method="nearest")
-            label = label + ignore_label
+                                             method="bilinear")
+            image = image + mean_pixel_val
+            if label is not None:
+                label = label - ignore_label
+                label = tf.image.resize_with_pad(label,
+                                                 crop_height,
+                                                 crop_width,
+                                                 method="nearest")
+                label = label + ignore_label
+        else:
+            image = pad_to_bounding_box(image, crop_height, crop_width,
+                                        mean_pixel_val)
+            if label is not None:
+                label = pad_to_bounding_box(label, target_height, target_width,
+                                            ignore_label)
 
     return image, label
 

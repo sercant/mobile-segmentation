@@ -77,14 +77,15 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
                                    use_bias=False)(_x)
                 _x = batch_norm(_x)
 
+    if not use_dpc:
+        _x = layers.Dropout(0.1)(_x)
+
     _x = layers.Conv2D(number_of_classes,
                        kernel_size=1,
                        strides=1,
                        padding="same",
                        name="logits",
-                       use_bias=False)(_x)
-
-    _x = layers.Dropout(0.1)(_x)
+                       use_bias=True)(_x)
 
     if output_size is not None and len(output_size) != 2:
         raise ValueError("Expected output size length of 2 but got {}.".format(

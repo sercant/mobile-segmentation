@@ -127,7 +127,7 @@ def _preprocess(image: tf.Tensor, label: tf.Tensor, crop_height: int,
             image = pad_to_bounding_box(image, crop_height, crop_width,
                                         mean_pixel_val)
             if label is not None:
-                label = pad_to_bounding_box(label, target_height, target_width,
+                label = pad_to_bounding_box(label, crop_height, crop_width,
                                             ignore_label)
 
     return image, label

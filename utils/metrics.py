@@ -7,36 +7,40 @@ class WeightedSparseMeanIoU(keras.metrics.MeanIoU):
         super(WeightedSparseMeanIoU, self).__init__(num_classes=num_classes)
         self.ignore_label = ignore_label
 
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        _ke = keras.backend
-        ignored_y_true = tf.where(_ke.equal(y_true, self.ignore_label),
-                                  _ke.zeros_like(y_true), y_true)
+    def update_state(self, y_true, y_pred, *args, **kwargs):
+        y_true = tf.cast(y_true, tf.int32)
+        y_pred = tf.cast(y_pred, tf.float32)
+        y_pred = tf.argmax(y_pred, axis=-1)
 
-        y_pred = _ke.argmax(y_pred)
+        probas = tf.reshape(y_pred, [-1])
+        labels = tf.reshape(y_true, [-1])
 
-        sample_weight = _ke.cast(
-            _ke.squeeze(_ke.not_equal(y_true, self.ignore_label), axis=-1),
-            'float32')
+        valid = tf.not_equal(labels, self.ignore_label)
 
-        super(WeightedSparseMeanIoU,
-              self).update_state(ignored_y_true, y_pred, sample_weight)
+        vprobas = tf.boolean_mask(tensor=probas, mask=valid)
+        vlabels = tf.boolean_mask(tensor=labels, mask=valid)
+
+        super(WeightedSparseMeanIoU, self).update_state(vlabels, vprobas)
 
 
-class WeightedAccuracy(keras.metrics.Accuracy):
-    def __init__(self, ignore_label: int = 255):
+class WeightedAccuracy(keras.metrics.SparseCategoricalAccuracy):
+    def __init__(self, num_classes: int, ignore_label: int = 255):
         super(WeightedAccuracy, self).__init__()
         self.ignore_label = ignore_label
+        self.num_classes = num_classes
 
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        _ke = keras.backend
-        ignored_y_true = tf.where(_ke.equal(y_true, self.ignore_label),
-                                  _ke.zeros_like(y_true), y_true)
+    def update_state(self, y_true, y_pred, *args, **kwargs):
+        y_true = tf.cast(y_true, tf.int32)
+        y_pred = tf.cast(y_pred, tf.float32)
+        y_pred = tf.nn.softmax(y_pred)
 
-        y_pred = _ke.argmax(y_pred)
+        probas = tf.reshape(y_pred, [-1, self.num_classes])
+        labels = tf.reshape(y_true, [-1])
 
-        sample_weight = _ke.cast(
-            _ke.squeeze(_ke.not_equal(y_true, self.ignore_label), axis=-1),
-            'float32')
+        valid = tf.not_equal(labels, self.ignore_label)
 
-        super(WeightedAccuracy, self).update_state(ignored_y_true, y_pred,
-                                                   sample_weight)
+        vprobas = tf.boolean_mask(tensor=probas, mask=valid)
+        vlabels = tf.boolean_mask(tensor=labels, mask=valid)
+        # one_hot_labels = tf.one_hot(vlabels, self.num_classes)
+
+        super(WeightedAccuracy, self).update_state(vlabels, vprobas)

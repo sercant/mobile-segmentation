@@ -4,7 +4,7 @@ from tensorflow import keras
 from dataset import get_dataset
 from preprocess import preprocess
 from model import shufflenet_v2_segmentation
-from utils.losses import sparse_categorical_crossentropy
+from utils.losses import SoftmaxCrossEntropy
 from utils.metrics import WeightedSparseMeanIoU, WeightedAccuracy
 
 
@@ -53,7 +53,7 @@ def train():
         small_backend=small_backend)
     model = keras.Model(inputs=inputs, outputs=outputs)
 
-    train_loss = sparse_categorical_crossentropy(dataset_desc.ignore_label)
+    train_loss = SoftmaxCrossEntropy(dataset_desc.num_classes, dataset_desc.ignore_label)
     train_metrics = [
         WeightedSparseMeanIoU(dataset_desc.num_classes,
                               dataset_desc.ignore_label),

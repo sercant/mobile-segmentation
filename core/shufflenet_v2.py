@@ -1,7 +1,8 @@
 import tensorflow as tf
 import tensorflow.keras as keras
 import tensorflow.keras.backend as K
-import tensorflow.keras.layers as layers, regularizers, Sequential
+import tensorflow.keras.layers as layers
+from tensorflow.keras import regularizers, Sequential
 from tensorflow.keras.layers import (Dense, GlobalAveragePooling2D, Conv2D,
                                      DepthwiseConv2D, BatchNormalization, ReLU,
                                      Reshape, Permute, Concatenate, Multiply,

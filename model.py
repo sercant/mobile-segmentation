@@ -1,18 +1,17 @@
 import tensorflow as tf
 import tensorflow.keras as keras
-from tensorflow.keras import layers
+from tensorflow.keras import layers, regularizers
+from tensorflow.keras.layers import Conv2D, DepthwiseConv2D, Concatenate
 from core.shufflenet_v2 import shufflenet_v2_base
 from core.encoder_heads import dpc_head, basic_head
 
-BATCH_NORM_PARAMS = {'decay': 0.9997, 'epsilon': 1e-5}
+
+def _batch_normalization():
+    return layers.BatchNormalization(momentum=0.9997, epsilon=1e-5)
 
 
-def batch_norm(inputs: tf.Tensor):
-    _x = layers.BatchNormalization(momentum=BATCH_NORM_PARAMS['decay'],
-                                   epsilon=BATCH_NORM_PARAMS['epsilon'],
-                                   fused=True)(inputs)
-
-    return _x
+def l2_regulizer():
+    return regularizers.l2(0.00004)
 
 
 def encoder_heads(inputs: tf.Tensor,
@@ -47,44 +46,47 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
     if decoder_stride is not None:
         with tf.name_scope("decoder"):
             branch = branch_exits[str(decoder_stride)]
-            branch = layers.Conv2D(48,
-                                   kernel_size=1,
-                                   strides=1,
-                                   activation="relu",
-                                   padding="same",
-                                   use_bias=False)(branch)
-            branch = batch_norm(branch)
+            branch = Conv2D(48,
+                            kernel_size=1,
+                            strides=1,
+                            activation="relu",
+                            padding="same",
+                            use_bias=False,
+                            kernel_regularizer=l2_regulizer())(branch)
+            branch = _batch_normalization()(branch)
 
             shape = tf.add(_x.shape[1:3], -1)
             shape = tf.multiply(shape, output_stride // decoder_stride)
             shape = tf.add(shape, 1)
             _x = tf.compat.v1.image.resize(_x, shape, align_corners=True)
 
-            _x = layers.Concatenate()([_x, branch])
+            _x = Concatenate()([_x, branch])
 
             for i in range(2):
-                _x = layers.DepthwiseConv2D(kernel_size=3,
-                                            strides=1,
-                                            activation="relu",
-                                            padding="same",
-                                            use_bias=False)(_x)
-                _x = batch_norm(_x)
-                _x = layers.Conv2D(filter_per_encoder_branch,
-                                   kernel_size=1,
-                                   strides=1,
-                                   padding="same",
-                                   activation="relu",
-                                   use_bias=False)(_x)
-                _x = batch_norm(_x)
+                _x = DepthwiseConv2D(kernel_size=3,
+                                     strides=1,
+                                     activation="relu",
+                                     padding="same",
+                                     use_bias=False)(_x)
+                _x = _batch_normalization()(_x)
+                _x = Conv2D(filter_per_encoder_branch,
+                            kernel_size=1,
+                            strides=1,
+                            padding="same",
+                            activation="relu",
+                            use_bias=False,
+                            kernel_regularizer=l2_regulizer())(_x)
+                _x = _batch_normalization()(_x)
 
     # _x = layers.Dropout(0.1)(_x)
 
-    _x = layers.Conv2D(number_of_classes,
-                       kernel_size=1,
-                       strides=1,
-                       padding="same",
-                       name="logits",
-                       use_bias=True)(_x)
+    _x = Conv2D(number_of_classes,
+                kernel_size=1,
+                strides=1,
+                padding="same",
+                name="logits",
+                use_bias=True,
+                kernel_regularizer=l2_regulizer())(_x)
 
     if output_size is not None and len(output_size) != 2:
         raise ValueError("Expected output size length of 2 but got {}.".format(
@@ -106,7 +108,7 @@ if __name__ == "__main__":
                                         decoder_stride=None,
                                         filter_per_encoder_branch=256)
 
-    model = tf.keras.Model(inputs=inputs, outputs=output)
+    model = keras.Model(inputs=inputs, outputs=output)
 
     model.summary()
     model.save("./checkpoints/shufflenet_v2_seg.h5")

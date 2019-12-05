@@ -125,10 +125,13 @@ def get_dataset(dataset_name: str,
             tf.data.TFRecordDataset,
             num_parallel_calls=tf.data.experimental.AUTOTUNE)
     else:
-        _dataset = tf.data.TFRecordDataset(
-            os.path.join(dataset_dir, FILE_PATTERN.format(split_name)))
+        _dataset = tf.data.TFRecordDataset(tf.io.matching_files(
+            os.path.join(dataset_dir, FILE_PATTERN.format(split_name))),
+                                           buffer_size=200000000,
+                                           num_parallel_reads=16)
 
-    _dataset = _dataset.map(_parse_to_items)
+    _dataset = _dataset.map(_parse_to_items,
+                            num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
     return _dataset, _DATASETS_INFORMATION[dataset_name]
 

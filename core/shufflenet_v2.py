@@ -1,12 +1,11 @@
 import tensorflow as tf
 import tensorflow.keras as keras
-from tensorflow.keras import Sequential
+import tensorflow.keras.backend as K
+import tensorflow.keras.layers as layers, regularizers, Sequential
 from tensorflow.keras.layers import (Dense, GlobalAveragePooling2D, Conv2D,
                                      DepthwiseConv2D, BatchNormalization, ReLU,
                                      Reshape, Permute, Concatenate, Multiply,
                                      Lambda)
-import tensorflow.keras.backend as K
-import tensorflow.keras.layers as layers
 
 
 def hard_sigmoid(inputs: tf.Tensor):
@@ -56,6 +55,14 @@ def _activation():
     return layers.Activation("relu")
 
 
+def _batch_normalization():
+    return BatchNormalization(momentum=0.997, epsilon=1e-3)
+
+
+def l2_regulizer():
+    return regularizers.l2(0.00004)
+
+
 def channel_shuffle(inputs: tf.Tensor, groups: int, name: str):
     _, height, width, in_channels = inputs.shape
     channels_per_group = in_channels // groups
@@ -70,12 +77,8 @@ def channel_shuffle(inputs: tf.Tensor, groups: int, name: str):
     return _x
 
 
-def _shuffleNetV2_block(inputs: tf.Tensor,
-                        output_channels: int,
-                        strides: int,
-                        rate: int,
-                        name: str,
-                        downsample: bool):
+def _shuffleNetV2_block(inputs: tf.Tensor, output_channels: int, strides: int,
+                        rate: int, name: str, downsample: bool):
     branch_features = output_channels // 2
 
     if downsample:
@@ -92,13 +95,14 @@ def _shuffleNetV2_block(inputs: tf.Tensor,
                                              padding="same",
                                              dilation_rate=rate,
                                              use_bias=False),
-                             BatchNormalization(),
+                             _batch_normalization(),
                              Conv2D(branch_features,
                                     kernel_size=1,
                                     strides=1,
                                     padding="same",
-                                    use_bias=False),
-                             BatchNormalization(),
+                                    use_bias=False,
+                                    kernel_regularizer=l2_regulizer()),
+                             _batch_normalization(),
                              _activation(),
                          ])(_x1)
 
@@ -109,23 +113,25 @@ def _shuffleNetV2_block(inputs: tf.Tensor,
                    kernel_size=1,
                    strides=1,
                    padding="same",
-                   use_bias=False),
-            BatchNormalization(),
+                   use_bias=False,
+                   kernel_regularizer=l2_regulizer()),
+            _batch_normalization(),
             _activation(),
             DepthwiseConv2D(kernel_size=3,
                             strides=strides,
                             padding="same",
                             dilation_rate=rate,
                             use_bias=False),
-            BatchNormalization(),
+            _batch_normalization(),
             #  SqueezeAndExcite(branch_features, 4)
             #  if not downsample else Lambda(lambda x: x),
             Conv2D(branch_features,
                    kernel_size=1,
                    strides=1,
                    padding="same",
-                   use_bias=False),
-            BatchNormalization(),
+                   use_bias=False,
+                   kernel_regularizer=l2_regulizer()),
+            _batch_normalization(),
             _activation(),
         ])(_x2)
 
@@ -162,8 +168,9 @@ def shufflenet_v2_base(inputs: tf.Tensor,
                 strides=2,
                 # activation=_activation,
                 padding="same",
-                use_bias=False),
-            BatchNormalization(),
+                use_bias=False,
+                kernel_regularizer=l2_regulizer()),
+            _batch_normalization(),
             _activation(),
         ])(inputs)
     current_stride *= 2
@@ -231,8 +238,9 @@ def shufflenet_v2(inputs: tf.Tensor,
                 kernel_size=1,
                 strides=1,
                 # activation=_activation,
-                padding="same"),
-            BatchNormalization(),
+                padding="same",
+                kernel_regularizer=l2_regulizer()),
+            _batch_normalization(),
             _activation(),
         ])(_x)
 

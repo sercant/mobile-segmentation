@@ -21,17 +21,18 @@ def train():
     small_backend = False
     restore_weights_from = './checkpoints/cifar100_shufflenet_v2_51_80.h5'
 
-    dataset, dataset_desc = get_dataset(dataset_name, dataset_split,
-                                        dataset_dir)
-    preprocessed_dataset = dataset.map(
+    dataset, dataset_desc = get_dataset(dataset_name,
+                                        dataset_split,
+                                        dataset_dir,
+                                        interleave=False)
+    preprocessed_dataset = dataset.prefetch(
+            buffer_size=tf.data.experimental.AUTOTUNE).shuffle(1024).map(
         preprocess(input_size,
                    is_training=True,
                    ignore_label=dataset_desc.ignore_label),
-        num_parallel_calls=tf.data.experimental.AUTOTUNE)
-    preprocessed_dataset = preprocessed_dataset.shuffle(512).batch(
+        num_parallel_calls=tf.data.experimental.AUTOTUNE).prefetch(
+            buffer_size=tf.data.experimental.AUTOTUNE).batch(
         batch_size).repeat()
-    preprocessed_dataset = preprocessed_dataset.prefetch(
-        buffer_size=tf.data.experimental.AUTOTUNE)
 
     TRAIN_LENGTH = dataset_desc.splits_to_sizes[dataset_split]
     STEPS_PER_EPOCH = TRAIN_LENGTH // batch_size
@@ -53,11 +54,12 @@ def train():
         small_backend=small_backend)
     model = keras.Model(inputs=inputs, outputs=outputs)
 
-    train_loss = SoftmaxCrossEntropy(dataset_desc.num_classes, dataset_desc.ignore_label)
+    train_loss = SoftmaxCrossEntropy(dataset_desc.num_classes,
+                                     dataset_desc.ignore_label)
     train_metrics = [
         WeightedSparseMeanIoU(dataset_desc.num_classes,
                               dataset_desc.ignore_label),
-        WeightedAccuracy(dataset_desc.ignore_label)
+        # WeightedAccuracy(dataset_desc.ignore_label)
     ]
 
     learning_rate_fn = keras.optimizers.schedules.PolynomialDecay(

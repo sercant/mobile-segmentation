@@ -151,7 +151,7 @@ def preprocess(input_size: list,
         image, label = _preprocess(image, label, input_size[0], input_size[1],
                                    min_scale, max_scale, scale_step,
                                    image_pad_val, ignore_label, is_training)
-        image = image / 255.0
+        image = (image / 127.5) - 1.0
 
         return image, label
 

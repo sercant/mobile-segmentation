@@ -104,7 +104,7 @@ ITEMS_TO_HANDLERS = {
 def get_dataset(dataset_name: str,
                 split_name: str,
                 dataset_dir: str,
-                interleave: bool = True):
+                interleave: bool = False):
     if dataset_name not in _DATASETS_INFORMATION:
         raise ValueError('The specified dataset is not supported yet.')
 

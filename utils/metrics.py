@@ -23,7 +23,7 @@ class WeightedSparseMeanIoU(keras.metrics.MeanIoU):
         super(WeightedSparseMeanIoU, self).update_state(vlabels, vprobas)
 
 
-class WeightedAccuracy(keras.metrics.Accuracy):
+class WeightedAccuracy(keras.metrics.SparseCategoricalAccuracy):
     def __init__(self, num_classes: int, ignore_label: int = 255):
         super(WeightedAccuracy, self).__init__()
         self.ignore_label = ignore_label
@@ -41,6 +41,14 @@ class WeightedAccuracy(keras.metrics.Accuracy):
 
         vprobas = tf.boolean_mask(tensor=probas, mask=valid)
         vlabels = tf.boolean_mask(tensor=labels, mask=valid)
-        vlabels = tf.one_hot(vlabels, self.num_classes)
+        # vlabels = tf.one_hot(vlabels, self.num_classes)
 
         super(WeightedAccuracy, self).update_state(vlabels, vprobas)
+
+if __name__ == "__main__":
+    a = tf.random.uniform([16, 225, 225, 2])
+    b = tf.random.uniform([16, 225, 225], maxval=3, dtype=tf.int32)
+
+    metric = WeightedAccuracy(2, 2)
+
+    print(metric(b, a))

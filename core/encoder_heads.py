@@ -70,11 +70,9 @@ def dpc_head(inputs: tf.Tensor, filter_per_branch: int = 256):
 
 
 def basic_head(inputs: tf.Tensor, filter_per_branch: int = 256):
-    _, width, height, _ = inputs.shape
-
     left_path = Sequential(name="basic_head_pooling",
                            layers=[
-                               AveragePooling2D(pool_size=(width, height)),
+                               AveragePooling2D(pool_size=inputs.shape[1:3]),
                                Conv2D(filter_per_branch,
                                       kernel_size=1,
                                       strides=1,
@@ -84,8 +82,8 @@ def basic_head(inputs: tf.Tensor, filter_per_branch: int = 256):
                                _batch_normalization(),
                                Activation("relu"),
                            ])(inputs)
-    left_path = tf.compat.v1.image.resize(left_path, [width, height],
-                                          align_corners=True)
+    # left_path = layers.UpSampling2D([width, height], interpolation='bilinear')(left_path)
+    left_path = tf.image.resize(left_path, inputs.shape[1:3])
 
     right_path = Sequential(name="basic_head_conv",
                             layers=[

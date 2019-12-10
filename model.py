@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tensorflow.keras as keras
-from tensorflow.keras import layers, regularizers
-from tensorflow.keras.layers import Conv2D, DepthwiseConv2D, Concatenate
+from tensorflow.keras import layers, regularizers, Sequential
+from tensorflow.keras.layers import Conv2D, DepthwiseConv2D, Concatenate, Activation, UpSampling2D
 from core.shufflenet_v2 import shufflenet_v2_base
 from core.encoder_heads import dpc_head, basic_head
 
@@ -33,8 +33,11 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
                                filter_per_encoder_branch: int = 256,
                                decoder_stride: int = None,
                                feature_extractor_checkpoint: str = None,
-                               small_backend: bool = False):
-    _x, branch_exits = shufflenet_v2_base(inputs, output_stride=output_stride)
+                               small_backend: bool = False,
+                               weight_loss: float = 0.00004):
+    _x, branch_exits = shufflenet_v2_base(inputs,
+                                          output_stride=output_stride,
+                                          weight_loss=weight_loss)
     if feature_extractor_checkpoint is not None:
         tmp = keras.Model(inputs=inputs, outputs=_x)
         tmp.load_weights(feature_extractor_checkpoint, by_name=True)
@@ -44,39 +47,47 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
                        filter_per_branch=filter_per_encoder_branch)
 
     if decoder_stride is not None:
-        with tf.name_scope("decoder"):
-            branch = branch_exits[str(decoder_stride)]
-            branch = Conv2D(48,
-                            kernel_size=1,
-                            strides=1,
-                            activation="relu",
-                            padding="same",
-                            use_bias=False,
-                            kernel_regularizer=l2_regulizer())(branch)
-            branch = _batch_normalization()(branch)
+        branch = branch_exits[str(decoder_stride)]
 
-            shape = tf.add(_x.shape[1:3], -1)
-            shape = tf.multiply(shape, output_stride // decoder_stride)
-            shape = tf.add(shape, 1)
-            _x = tf.compat.v1.image.resize(_x, shape, align_corners=True)
+        branch = Sequential(name="decoder",
+                            layers=[
+                                Conv2D(48,
+                                       kernel_size=1,
+                                       strides=1,
+                                       padding="same",
+                                       use_bias=False,
+                                       kernel_regularizer=l2_regulizer()),
+                                _batch_normalization(),
+                                Activation("relu")
+                            ])(branch)
 
-            _x = Concatenate()([_x, branch])
+        _x = tf.image.resize(_x, branch.shape[1:3])
+        # _x = tf.compat.v1.image.resize(_x, shape, align_corners=True)
 
-            for i in range(2):
-                _x = DepthwiseConv2D(kernel_size=3,
-                                     strides=1,
-                                     activation="relu",
-                                     padding="same",
-                                     use_bias=False)(_x)
-                _x = _batch_normalization()(_x)
-                _x = Conv2D(filter_per_encoder_branch,
-                            kernel_size=1,
-                            strides=1,
-                            padding="same",
-                            activation="relu",
-                            use_bias=False,
-                            kernel_regularizer=l2_regulizer())(_x)
-                _x = _batch_normalization()(_x)
+        # scale = (branch.shape[1] // _x.shape[1],
+        #          branch.shape[2] // _x.shape[2])
+        # _x = UpSampling2D(scale, interpolation='bilinear')(_x)
+
+        _x = Concatenate()([_x, branch])
+
+        for i in range(2):
+            _x = Sequential(name=f"decoder_conv_{i+1}",
+                            layers=[
+                                DepthwiseConv2D(kernel_size=3,
+                                                strides=1,
+                                                padding="same",
+                                                use_bias=False),
+                                _batch_normalization(),
+                                Activation("relu"),
+                                Conv2D(filter_per_encoder_branch,
+                                       kernel_size=1,
+                                       strides=1,
+                                       padding="same",
+                                       use_bias=False,
+                                       kernel_regularizer=l2_regulizer()),
+                                _batch_normalization(),
+                                Activation("relu"),
+                            ])(_x)
 
     # _x = layers.Dropout(0.1)(_x)
 
@@ -94,7 +105,11 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
     else:
         output_size = inputs.shape[1:3]
 
-    _x = tf.compat.v1.image.resize(_x, output_size, align_corners=True)
+    _x = tf.image.resize(_x, output_size)
+    # _x = tf.compat.v1.image.resize(_x, output_size, align_corners=True)
+
+    # scale = (output_size[0] // _x.shape[1], output_size[1] // _x.shape[2])
+    # _x = UpSampling2D(scale, interpolation='bilinear')(_x)
 
     return _x
 
@@ -105,7 +120,7 @@ if __name__ == "__main__":
                                         19,
                                         16,
                                         use_dpc=False,
-                                        decoder_stride=None,
+                                        decoder_stride=8,
                                         filter_per_encoder_branch=256)
 
     model = keras.Model(inputs=inputs, outputs=output)

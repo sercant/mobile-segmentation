@@ -84,7 +84,7 @@ def basic_head(inputs: tf.Tensor, filter_per_branch: int = 256):
                            ])(inputs)
     # left_path = layers.UpSampling2D([width, height], interpolation='bilinear')(left_path)
     # left_path = tf.image.resize(left_path, inputs.shape[1:3])
-    _x = tf.compat.v1.image.resize(left_path, inputs.shape[1:3], align_corners=True)
+    left_path = tf.compat.v1.image.resize(left_path, inputs.shape[1:3], align_corners=True)
 
     right_path = Sequential(name="basic_head_conv",
                             layers=[

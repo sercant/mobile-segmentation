@@ -9,7 +9,12 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "console": "internalConsole"
+            "console": "internalConsole",
+            "args": [
+                "--checkpoint_dir=checkpoints",
+                "--dataset_dir=data/cityscapes/tfrecord",
+                "--dataset_train_split=val",
+            ]
         }
     ]
 }

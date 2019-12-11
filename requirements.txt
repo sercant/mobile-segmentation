@@ -1,2 +1,2 @@
-tensorflow-gpu==2.0.0-rc0
-gast==0.2.2
+tensorflow-gpu==2.1.0-rc1
+absl-py==0.8.1

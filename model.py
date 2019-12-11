@@ -61,8 +61,8 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
                                 Activation("relu")
                             ])(branch)
 
-        _x = tf.image.resize(_x, branch.shape[1:3])
-        # _x = tf.compat.v1.image.resize(_x, shape, align_corners=True)
+        # _x = tf.image.resize(_x, branch.shape[1:3])
+        _x = tf.compat.v1.image.resize(_x, branch.shape[1:3], align_corners=True)
 
         # scale = (branch.shape[1] // _x.shape[1],
         #          branch.shape[2] // _x.shape[2])
@@ -105,8 +105,8 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
     else:
         output_size = inputs.shape[1:3]
 
-    _x = tf.image.resize(_x, output_size)
-    # _x = tf.compat.v1.image.resize(_x, output_size, align_corners=True)
+    # _x = tf.image.resize(_x, output_size)
+    _x = tf.compat.v1.image.resize(_x, output_size, align_corners=True)
 
     # scale = (output_size[0] // _x.shape[1], output_size[1] // _x.shape[2])
     # _x = UpSampling2D(scale, interpolation='bilinear')(_x)

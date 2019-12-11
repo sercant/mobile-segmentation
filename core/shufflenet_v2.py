@@ -6,7 +6,13 @@ from tensorflow.keras import regularizers, Sequential
 from tensorflow.keras.layers import (Dense, GlobalAveragePooling2D, Conv2D,
                                      DepthwiseConv2D, BatchNormalization, ReLU,
                                      Reshape, Permute, Concatenate, Multiply,
-                                     Lambda)
+                                     Lambda, Activation)
+
+PARAMS = {
+    'weight_loss': 0.00004,
+    'batchnorm_momentum': 0.997,
+    'batchnorm_epsilon': 1e-3
+}
 
 
 def hard_sigmoid(inputs: tf.Tensor):
@@ -53,15 +59,16 @@ class Split(layers.Layer):
 # _activation = "relu"
 # _activation = "relu"
 def _activation():
-    return layers.Activation("relu")
+    return Activation("relu")
 
 
 def _batch_normalization():
-    return BatchNormalization(momentum=0.997, epsilon=1e-3)
+    return BatchNormalization(momentum=PARAMS['batchnorm_momentum'],
+                              epsilon=PARAMS['batchnorm_epsilon'])
 
 
 def l2_regulizer():
-    return regularizers.l2(0.00004)
+    return regularizers.l2(PARAMS['weight_loss'])
 
 
 def channel_shuffle(inputs: tf.Tensor, groups: int, name: str):
@@ -146,6 +153,7 @@ def shufflenet_v2_base(inputs: tf.Tensor,
                        stages_repeats: list = [4, 8, 4],
                        stages_out_channels: list = [24, 116, 232, 464, 1024],
                        output_stride: int = 32,
+                       weight_loss: float = 0.00004,
                        prefix: str = "shufflenet_v2"):
     if len(stages_repeats) != 3:
         raise ValueError('expected stages_repeats as list of 3 positive ints')
@@ -154,6 +162,8 @@ def shufflenet_v2_base(inputs: tf.Tensor,
             'expected stages_out_channels as list of 5 positive ints')
     if output_stride < 4:
         raise ValueError('output stride cannot be smaller than 4')
+
+    PARAMS['weight_loss'] = weight_loss
 
     current_stride = 1
     current_rate = 1

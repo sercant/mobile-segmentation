@@ -67,8 +67,6 @@ def train(_):
     skip_mismatch = FLAGS.checkpoint_skip_mismatch
     checkpoint_note = FLAGS.checkpoint_note
 
-    small_backend = False
-
     dataset, dataset_desc = get_dataset(dataset_name,
                                         dataset_train_split,
                                         dataset_dir,
@@ -107,9 +105,8 @@ def train(_):
     outputs = shufflenet_v2_segmentation(
         inputs,
         dataset_desc.num_classes,
-        filter_per_encoder_branch=128 if small_backend else 256,
-        use_dpc=use_dpc,
-        small_backend=small_backend)
+        filter_per_encoder_branch=256,
+        use_dpc=use_dpc)
     model = keras.Model(inputs=inputs, outputs=outputs)
 
     train_loss = SoftmaxCrossEntropy(dataset_desc.num_classes,

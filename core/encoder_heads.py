@@ -3,13 +3,21 @@ import tensorflow.keras as keras
 from tensorflow.keras import layers, regularizers, Sequential
 from tensorflow.keras.layers import AveragePooling2D, BatchNormalization, Conv2D, Concatenate, DepthwiseConv2D, Activation
 
+PARAMS = {
+    'weight_loss': 0.00004,
+    'batchnorm_momentum': 0.997,
+    'batchnorm_epsilon': 1e-3
+}
+
 
 def _batch_normalization():
-    return BatchNormalization(momentum=0.9997, epsilon=1e-5)
+    return BatchNormalization(momentum=PARAMS['batchnorm_momentum'],
+                              epsilon=PARAMS['batchnorm_epsilon'])
 
 
 def l2_regulizer():
-    return regularizers.l2(0.00004)
+    return regularizers.l2(
+        PARAMS['weight_loss']) if PARAMS['weight_loss'] > 0 else None
 
 
 def exit_flow(inputs: tf.Tensor, filter_count: int = 256):
@@ -28,7 +36,11 @@ def exit_flow(inputs: tf.Tensor, filter_count: int = 256):
     return _x
 
 
-def dpc_head(inputs: tf.Tensor, filter_per_branch: int = 256):
+def dpc_head(inputs: tf.Tensor,
+             filter_per_branch: int = 256,
+             weight_loss: float = 0.00004):
+    PARAMS['weight_loss'] = weight_loss
+
     def dpc_conv_op(inputs: tf.Tensor, rate: list, name: str):
         _x = Sequential(name=name,
                         layers=[
@@ -69,7 +81,11 @@ def dpc_head(inputs: tf.Tensor, filter_per_branch: int = 256):
     return _x
 
 
-def basic_head(inputs: tf.Tensor, filter_per_branch: int = 256):
+def basic_head(inputs: tf.Tensor,
+               filter_per_branch: int = 256,
+               weight_loss: float = 0.00004):
+    PARAMS['weight_loss'] = weight_loss
+
     left_path = Sequential(name="basic_head_pooling",
                            layers=[
                                AveragePooling2D(pool_size=inputs.shape[1:3]),
@@ -84,7 +100,9 @@ def basic_head(inputs: tf.Tensor, filter_per_branch: int = 256):
                            ])(inputs)
     # left_path = layers.UpSampling2D([width, height], interpolation='bilinear')(left_path)
     # left_path = tf.image.resize(left_path, inputs.shape[1:3])
-    left_path = tf.compat.v1.image.resize(left_path, inputs.shape[1:3], align_corners=True)
+    left_path = tf.compat.v1.image.resize(left_path,
+                                          inputs.shape[1:3],
+                                          align_corners=True)
 
     right_path = Sequential(name="basic_head_conv",
                             layers=[

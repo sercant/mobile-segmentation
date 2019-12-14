@@ -1,26 +1,39 @@
 import tensorflow as tf
 import tensorflow.keras as keras
 from tensorflow.keras import layers, regularizers, Sequential
-from tensorflow.keras.layers import Conv2D, DepthwiseConv2D, Concatenate, Activation, UpSampling2D
+from tensorflow.keras.layers import (Conv2D, DepthwiseConv2D, Concatenate,
+                                     Activation, UpSampling2D,
+                                     BatchNormalization)
 from core.shufflenet_v2 import shufflenet_v2_base
 from core.encoder_heads import dpc_head, basic_head
 
+PARAMS = {
+    'weight_loss': 0.00004,
+    'batchnorm_momentum': 0.997,
+    'batchnorm_epsilon': 1e-3
+}
+
 
 def _batch_normalization():
-    return layers.BatchNormalization(momentum=0.9997, epsilon=1e-5)
+    return BatchNormalization(momentum=PARAMS['batchnorm_momentum'],
+                              epsilon=PARAMS['batchnorm_epsilon'])
 
 
 def l2_regulizer():
-    return regularizers.l2(0.00004)
+    return regularizers.l2(
+        PARAMS['weight_loss']) if PARAMS['weight_loss'] > 0 else None
 
 
 def encoder_heads(inputs: tf.Tensor,
                   use_dpc: bool = True,
-                  filter_per_branch: int = 256):
-    _x = dpc_head(
+                  filter_per_branch: int = 256,
+                  weight_loss: Float = 0.00004):
+    _x = dpc_head(inputs,
+                  filter_per_branch=filter_per_branch,
+                  weight_loss=weight_loss) if use_dpc else basic_head(
         inputs,
-        filter_per_branch=filter_per_branch) if use_dpc else basic_head(
-            inputs, filter_per_branch=filter_per_branch)
+                      filter_per_branch=filter_per_branch,
+                      weight_loss=weight_loss)
     return _x
 
 
@@ -42,9 +55,12 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
         tmp = keras.Model(inputs=inputs, outputs=_x)
         tmp.load_weights(feature_extractor_checkpoint, by_name=True)
 
+    PARAMS['weight_loss'] = weight_loss
+
     _x = encoder_heads(_x,
                        use_dpc,
-                       filter_per_branch=filter_per_encoder_branch)
+                       filter_per_branch=filter_per_encoder_branch,
+                       weight_loss=weight_loss)
 
     if decoder_stride is not None:
         branch = branch_exits[str(decoder_stride)]
@@ -62,7 +78,9 @@ def shufflenet_v2_segmentation(inputs: tf.Tensor,
                             ])(branch)
 
         # _x = tf.image.resize(_x, branch.shape[1:3])
-        _x = tf.compat.v1.image.resize(_x, branch.shape[1:3], align_corners=True)
+        _x = tf.compat.v1.image.resize(_x,
+                                       branch.shape[1:3],
+                                       align_corners=True)
 
         # scale = (branch.shape[1] // _x.shape[1],
         #          branch.shape[2] // _x.shape[2])
